@@ -1,6 +1,7 @@
 const ctx = document.getElementById('standings_canvas').getContext('2d');
-const myChart = new Chart(ctx, {
-    type: 'bar',
+
+var myChart = new Chart(ctx, {
+    type: 'line',
     data: {
         labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
         datasets: [{
@@ -22,7 +23,7 @@ const myChart = new Chart(ctx, {
                 'rgba(153, 102, 255, 1)',
                 'rgba(255, 159, 64, 1)'
             ],
-            borderWidth: 1
+            borderWidth: 1,
         }]
     },
     options: {
@@ -32,4 +33,13 @@ const myChart = new Chart(ctx, {
             }
         }
     }
+});
+
+$( document ).ready(function() {
+    function getChartData() {
+        $.get('/standings', function(data, status){
+            alert("Data: " + data + "\nStatus: " + status);
+        });
+    };
+    getChartData();
 });
