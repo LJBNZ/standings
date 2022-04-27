@@ -1,1 +1,5 @@
-client/node_modules/
+*.pyc
+__pycache__
+
+flask_app/teamdata
+flask_app/static/js/lib
