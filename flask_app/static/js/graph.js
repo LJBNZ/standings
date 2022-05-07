@@ -34,12 +34,3 @@ var myChart = new Chart(ctx, {
         }
     }
 });
-
-$( document ).ready(function() {
-    function getChartData() {
-        $.get('/standings', function(data, status){
-            alert("Data: " + data + "\nStatus: " + status);
-        });
-    };
-    getChartData();
-});

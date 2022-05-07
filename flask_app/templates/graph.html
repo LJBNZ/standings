@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <h1>{% block title %}Graph{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+    <body>
+        <script src="{{ url_for('static', filename='js/lib/node_modules/chart.js/dist/chart.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/lib/node_modules/jquery/dist/jquery.js') }}"></script>
+        <div id="canvas">
+            <canvas id="standings_canvas" width="800" height="500"></canvas>
+        </div>
+        <div id="response_test">
+            <p>{{ json_data }}</p>
+        </div>
+        <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
+    </body>
+{% endblock %}
