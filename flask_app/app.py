@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 
-from .nba_api_gateway import get_graph_data
+from .nba_server.nba_api_gateway import get_graph_data
 
 app = Flask(__name__)
 

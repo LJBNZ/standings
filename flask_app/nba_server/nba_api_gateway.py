@@ -8,6 +8,8 @@ import pickle
 from nba_api.stats.endpoints.teamgamelogs import TeamGameLogs
 from nba_api.stats.static import teams
 
+from . import team_colours
+
 SEASON_YEAR = '2021-22'
 SEASON_TYPE = 'Regular Season'
 
@@ -28,11 +30,17 @@ class Game():
 @dataclass
 class Team():
     name: str
+    primary_colour: str
+    secondary_colour: str
     games: List[Game]
 
     def as_dict(self):
         games = [game.__dict__ for game in self.games]
-        return {'team_name': self.name, 'games': games}
+        return {'team_name': self.name,
+                'primary_colour': self.primary_colour,
+                'secondary_colour': self.secondary_colour,
+                'games': games,
+                }
 
 
 def _get_parsed_game_logs(game_logs: Dict) -> List[Game]:
@@ -70,9 +78,10 @@ def _get_teams_data() -> List[Team]:
         time.sleep(0.6)  # slowdown for API calls
         team_id = raw_team_data['id']
         team_name = raw_team_data['full_name']
+        primary_colour, secondary_colour = team_colours.get_colours_for_team(team_name)
         print(f'Getting data for {team_name}...')
         games = _get_game_logs_for_team(team_id)
-        all_teams.append(Team(team_name, games))
+        all_teams.append(Team(team_name, primary_colour, secondary_colour, games))
     return all_teams
 
 
@@ -92,7 +101,7 @@ def _get_team_games_data():
     if not os.path.exists(TEAM_DATA_FILE):
         _store_team_data()
     raw_teams_data = _load_team_data()
-    jsonified_teams_data = json.dumps([team.as_dict() for team in raw_teams_data], sort_keys=True, indent=4)
+    jsonified_teams_data = [team.as_dict() for team in raw_teams_data]
     return jsonified_teams_data
 
 
