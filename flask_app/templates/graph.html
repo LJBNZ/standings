@@ -8,12 +8,19 @@
     <body>
         <script src="{{ url_for('static', filename='js/lib/node_modules/chart.js/dist/chart.js') }}"></script>
         <script src="{{ url_for('static', filename='js/lib/node_modules/jquery/dist/jquery.js') }}"></script>
+        <select name="Team Conference" id="conference_menu" onChange="onConferenceSelection(this.value)">
+            <option value="All">All Teams</option>
+            <option value="East">Eastern Conference</option>
+            <option value="West">Western Conference</option>
+        </select>
         <div id="canvas">
-            <canvas id="standings_canvas" width="800" height="500"></canvas>
+            <canvas id="standings_canvas" width="1000" height="500"></canvas>
         </div>
-        <div id="response_test">
-            <p>{{ json_data }}</p>
-        </div>
+        <script>
+            // Receipt of Flask variables
+            var chartJsonData = '{{ json_data | tojson | safe }}';
+            var imageFolderBasePath = "{{ url_for('static', filename='img') }}"
+        </script>
         <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
     </body>
 {% endblock %}
