@@ -1,5 +1,5 @@
 *.pyc
 __pycache__
 .vscode/
-flask_app/teamdata
-flask_app/static/js/lib
+node_modules
+teamdata
