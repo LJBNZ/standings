@@ -1,5 +1,5 @@
 const GAMES_PER_SEASON = 82;
-const IMAGE_POINT_SIZE_PX = 24;
+const IMAGE_POINT_SIZE_PX = 30;
 
 // Standings graph user options
 
@@ -29,12 +29,28 @@ const standingsGraphYAxisOptions = {
     seed: 'seed'
 }
 
+const xAxisOriginLabel = '';
+
 
 // The basic graph options
 const standingsGraphOptionsBase = {
     spanGaps: true,
     layout: {
         padding: IMAGE_POINT_SIZE_PX
+    },
+    scales: {
+        x: {
+            type: 'category',
+        }
+    },
+    elements: {
+        line: {
+            borderWidth: 5,
+            borderCapStyle: 'round'
+        },
+        point: {
+            borderWidth: 0,
+        },
     },
     plugins: {
         legend: {
@@ -44,55 +60,34 @@ const standingsGraphOptionsBase = {
             xAlign: 'right',
             yAlign: 'top',
             caretPadding: 8,
-            cornerRadius: 0
+            cornerRadius: 0,
+            filter: function(tooltipItem) {
+                // Don't show tooltip for x-axis origin point
+                return tooltipItem.dataIndex !== 0;
+            }
         }
     },
-    scales: {
-        x: {
-            type: 'linear',
-            max: GAMES_PER_SEASON
-        }
-    }
+    onHover: onHoverHandler, 
 }
 
 
 const teamGraphDatasetBase = {
     label: "",
     data: [],
-    // borderWidth: 2,
-    tension: 0.0,
+    tension: 0.3,
     clip: {left: false, top: false, right: IMAGE_POINT_SIZE_PX, bottom: false},
     hidden: false,
-    // parsing: false
 }
+
+
+const months = ["January", "February", "March", "April", "May", "June", 
+                "July", "August", "September", "October", "November", "December"];
 
 const weekInMilliseconds = 604800000;   // 7 days in milliseconds
 
 function _getSeasonWeekNumForDate(seasonStartDate, date) {
     return Math.ceil((date - seasonStartDate) / weekInMilliseconds);
 }
-
-
-
-const months = ["January", "February", "March", "April", "May", "June", 
-                "July", "August", "September", "October", "November", "December"];
-
-function _groupGamesByMonth(games) {
-    // Returns a map with arrays of games hashed by the string representation 
-    // of the month the games took place in.
-    var gamesByMonth = new Map();
-    for (let i = 0; i < games.length; i++) {
-        let game = games[i];
-        let gameMonth = months[new Date(game.date).getMonth()];
-        if (gamesByMonth[gameMonth] === undefined) {
-            // Initialise an empty array for the month
-            gamesByMonth[gameMonth] = [];
-        }
-        gamesByMonth[gameMonth].push(game);
-    }
-    return gamesByMonth;
-}
-
 
 function _getDataForGamesByMonthNum(games, xAxisMonthNumbers, yAxisType) {
 
@@ -129,6 +124,7 @@ function _getDataForGamesByMonthNum(games, xAxisMonthNumbers, yAxisType) {
         }
     }
 
+    data.splice(0, 0, 0);   // Add origin point
     return data;
 }
 
@@ -167,6 +163,7 @@ function _getDataForGamesByWeekNum(games, seasonStartDate, xAxisWeekNumbers, yAx
         }
     }
 
+    data.splice(0, 0, 0);   // Add origin point
     return data;
 }
 
@@ -188,22 +185,56 @@ function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
         }
     }
 
-    return Array.from(yAxisDataByGameNum.values());
+    var data = Array.from(yAxisDataByGameNum.values());
+    data.splice(0, 0, 0);   // Add origin point
+    return data;
 }
 
+
+function _getLogoImageForTeamName(teamName) {
+    var teamLogo = new Image(IMAGE_POINT_SIZE_PX, IMAGE_POINT_SIZE_PX);
+    var imageName = teamName.toLowerCase().replace(/ /g, '_');
+    teamLogo.src = `./img/${imageName}.png`;
+    return teamLogo;
+}
+
+
+function _setDatasetPointStyling(dataset) {
+    var lastNotNullIdx = 0;
+    for (let i = 0; i < dataset.data.length; i++) {
+        if (dataset.data[i] != null) {
+            lastNotNullIdx = i;
+        }
+    }
+    var pointStyles = new Array(dataset.data.length).fill('point');
+    pointStyles[lastNotNullIdx] = _getLogoImageForTeamName(dataset.team.name);
+    dataset.pointStyle = pointStyles;
+
+    var pointRadii = new Array(dataset.data.length).fill(2.5);
+    pointRadii[0] = 0;
+    dataset.pointRadius = pointRadii;
+
+    var hoverRadii = new Array(dataset.data.length).fill(5);
+    hoverRadii[0] = 0;
+    hoverRadii[lastNotNullIdx] = IMAGE_POINT_SIZE_PX;
+    dataset.pointHoverRadius = hoverRadii;
+}
+
+
 function _getDatasetForTeamData(team, data) {
-    return {
+    var dataset = {
         ...teamGraphDatasetBase,
         team: team,
         label: team.name,
         data: data,
-        backgroundColor: team.primary_colour,
-        borderColor: team.secondary_colour,
+        backgroundColor: team.secondary_colour,
+        borderColor: team.primary_colour,
         order: team.league_rank,
-        // pointStyle: linePointStyles,
-        // pointRadius: linePointRadii,
         // pointHoverRadius: linePointHoverRadii,
     }
+
+    _setDatasetPointStyling(dataset);
+    return dataset;
 }
 
 function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOption, yAxisTypeOption) {
@@ -223,6 +254,7 @@ function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOp
         datasets.push(teamDataset);
     }
 
+    xAxisGameNumbers.splice(0, 0, xAxisOriginLabel);   // Add origin label for x-axis
     return {labels: xAxisGameNumbers, datasets: datasets};
 }
 
@@ -246,7 +278,7 @@ function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, y
     }
 
     // Format the week number string labels for plotting on the x-axis
-    var labels = [];
+    var labels = [xAxisOriginLabel]; 
     xAxisWeekNumbers.forEach(weekNum => {
         labels.push("Week " + weekNum.toString());
     });
@@ -274,7 +306,7 @@ function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate,
     }
 
     // Format the month string labels for plotting on the x-axis
-    var labels = [];
+    var labels = [xAxisOriginLabel];
     xAxisMonthNumbers.forEach(monthNum => {
         labels.push(months[monthNum]);
     });
@@ -343,11 +375,11 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
                                   xAxisTimeStepOption,  // One of standingsGraphXAxisTimeResolutionOptions
                                   yAxisTypeOption) {    // One of standingsGraphYAxisOptions
     var options = standingsGraphOptionsBase;
-    if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.gameToGame) {
-        options.scales.x.type = 'linear';
-    } else {
-        options.scales.x.type = 'category';
-    }
+    // if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.gameToGame) {
+    //     options.scales.x.type = 'category';
+    // } else {
+    //     options.scales.x.type = 'category';
+    // }
     return options;
 }
 
@@ -359,89 +391,32 @@ export { standingsGraphTeamOptions,
          getStandingsGraphOptions };
 
 
-// function onHoverHandler(event, activeElements) {
-//     var activeIndices = new Set();
-//     for (let i = 0; i < activeElements.length; i++) {
-//         activeIndices.add(activeElements[i].datasetIndex);
-//     }
+function onHoverHandler(event, activeElements, chart) {
+    var activeIndices = new Set();
+    for (let i = 0; i < activeElements.length; i++) {
+        activeIndices.add(activeElements[i].datasetIndex);
+    }
 
-//     if (activeIndices.size > 0) {
-//         for (let datasetIdx = 0; datasetIdx < standingsChart.data.datasets.length; datasetIdx++) {
-//             let dataset = standingsChart.data.datasets[datasetIdx]
-//             if (activeIndices.has(datasetIdx)) {
-//                 dataset.backgroundColor = dataset.team.primary_colour;
-//                 dataset.borderColor = dataset.team.secondary_colour;
-//                 dataset.order = dataset.team.league_rank - 100;
-//             } else {
-//                 dataset.backgroundColor = "#ababab";
-//                 dataset.borderColor = "#ababab";
-//             }
-//         }
-//     } else {
-//         for (let datasetIdx = 0; datasetIdx < standingsChart.data.datasets.length; datasetIdx++) {
-//             let dataset = standingsChart.data.datasets[datasetIdx]
-//             dataset.backgroundColor = dataset.team.primary_colour;
-//             dataset.borderColor = dataset.team.secondary_colour;
-//             dataset.order = dataset.team.league_rank;
-//         }
-//     }
+    if (activeIndices.size > 0) {
+        for (let datasetIdx = 0; datasetIdx < chart.data.datasets.length; datasetIdx++) {
+            let dataset = chart.data.datasets[datasetIdx]
+            if (activeIndices.has(datasetIdx)) {
+                dataset.backgroundColor = dataset.team.secondary_colour;
+                dataset.borderColor = dataset.team.primary_colour;
+                dataset.order = dataset.team.league_rank - 100;
+            } else {
+                dataset.backgroundColor = "#ababab";
+                dataset.borderColor = "#ababab";
+            }
+        }
+    } else {
+        for (let datasetIdx = 0; datasetIdx < chart.data.datasets.length; datasetIdx++) {
+            let dataset = chart.data.datasets[datasetIdx]
+            dataset.backgroundColor = dataset.team.secondary_colour;
+            dataset.borderColor = dataset.team.primary_colour;
+            dataset.order = dataset.team.league_rank;
+        }
+    }
 
-//     standingsChart.update();
-// // }
-
-
-// function gamesBehind(teamAWins, teamALosses, teamBWins, teamBLosses) {
-//     // Computes games behind value from two teams' records
-//     return ((teamAWins - teamALosses) - (teamBWins - teamBLosses)) / 2;
-// }
-
-
-// function getLogoForTeam(teamName) {
-//     var img = new Image(IMAGE_POINT_SIZE_PX, IMAGE_POINT_SIZE_PX);
-//     img.src = imageFolderBasePath + "/" + teamName + ".png";
-//     img.style.filter = "alpha(opacity=50)";
-//     img.style.opacity = 0.5;
-//     return img;
-// }
-
-
-    // // Initialise leading record at each game to worst possible record
-    // var leadingRecordOverTime = [];
-    // for (let i = 0; i < maxGamesPlayed; i++) {
-    //     leadingRecordOverTime[i] = [0, i + 1];
-    // }
-
-    // // Compute the best record over time for each game played
-    // for (let team_idx = 0; team_idx < teamData.length; team_idx++) {
-    //     let team = teamData[team_idx];
-    //     for (let game_idx = 0; game_idx < team.games.length; game_idx++) {
-    //         let game = team.games[game_idx];
-    //         let leadingRecordAtTime = leadingRecordOverTime[game_idx];
-    //         if (gamesBehind(leadingRecordAtTime[0], leadingRecordAtTime[1], game.cumulative_wins, game.cumulative_losses) < 0) {
-    //             // Teams record at time is better: assign it as the leading record at the current game
-    //             leadingRecordOverTime[game_idx] = [game.cumulative_wins, game.cumulative_losses];
-    //         }
-    //     }
-    // }
-
-
-
-// function renderTeamGamesBehindGraph(teamData, conference) {
-//     var teamDatasets = getTeamGamesBehindDatasets(teamData, conference);
-//     standingsChart.data.datasets = teamDatasets;
-//     standingsChart.update();
-// }
-
-
-// function onConferenceSelection(selectedConference) {
-//     for (let i = 0; i < standingsChart.data.datasets.length; i++) {
-//         let team = standingsChart.data.datasets[i].team;
-//         console.log(team.conference);
-//         standingsChart.data.datasets[i].hidden = (selectedConference !== "All" && selectedConference !== team.conference);
-//     }
-//     standingsChart.update();
-// }
-
-
-// renderTeamGamesBehindGraph(parsedTeamData, conference="all");
-
+    chart.update();
+}

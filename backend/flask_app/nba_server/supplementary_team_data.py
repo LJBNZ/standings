@@ -20,7 +20,7 @@ colours_by_team = {
     "Los Angeles Lakers":     ("#fdb927", "#552583"),
     "Memphis Grizzlies":      ("#5d76a9", "#12173f"),
     "Miami Heat":             ("#98002e", "#f9a01b"),
-    "Milwaukee Bucks":        ("#eee1c6", "#00471b"),
+    "Milwaukee Bucks":        ("#00471b", "#eee1c6"),
     "Minnesota Timberwolves": ("#236192", "#78be20"),
     "New Orleans Pelicans":   ("#b4975a", "#002b5c"),
     "New York Knicks":        ("#006bb6", "#f58426"),
@@ -31,7 +31,7 @@ colours_by_team = {
     "Portland Trail Blazers": ("#e03a3e", "#000000"),
     "Sacramento Kings":       ("#5a2b81", "#63727a"),
     "San Antonio Spurs":      ("#c4ced4", "#000000"),
-    "Toronto Raptors":        ("#ce1141", "#000000"),
+    "Toronto Raptors":        ("#000000", "#ce1141"),
     "Utah Jazz":              ("#002b5c", "#00471b"),
     "Washington Wizards":     ("#002b5c", "#e31837"),
 }
