@@ -1,9 +1,15 @@
 import './App.css';
 
+import { standingsGraphTeamOptions, 
+         standingsGraphXAxisGamesOptions, 
+         standingsGraphXAxisTimeResolutionOptions, 
+         standingsGraphYAxisOptions, 
+         getStandingsGraphDataFromTeamData,
+         getStandingsGraphOptions } from './standingsGraphData';
+
 import React, { useEffect, useState } from 'react';
 import { Chart as ChartJS } from 'chart.js/auto'
 import { Chart, Line } from 'react-chartjs-2';
-
 
 const data = {
   labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
@@ -24,20 +30,25 @@ const data = {
   ]
 };
 
-
 function App() {
 
-  const [teamData, setTeamData] = useState('');
+  const [teamSubsetOption, setTeamSubsetOption] = useState(standingsGraphTeamOptions.all);
+  const [numGamesOption, setNumGamesOption] = useState(standingsGraphXAxisGamesOptions.all);
+  const [timeStepOption, setTimeStepOption] = useState(standingsGraphXAxisTimeResolutionOptions.monthToMonth);
+  const [yAxisOption, setYAxisOption] = useState(standingsGraphYAxisOptions.record);
+
+  const [teamData, setTeamData] = useState({});
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(()=>{
     setIsLoading(true);
     fetch('/teamData')
-      .then(res => res.text())
+      .then(res => res.json())
         .then(
           (result) => {
-            setTeamData(result);
             setIsLoading(false);
+            setTeamData(result);
           },
           (error) => {
             console.log(error);
@@ -45,11 +56,21 @@ function App() {
         )
   }, []);
 
+  let data = getStandingsGraphDataFromTeamData(teamData, 
+                                               teamSubsetOption, 
+                                               numGamesOption, 
+                                               timeStepOption, 
+                                               yAxisOption);
+  let options = getStandingsGraphOptions(teamSubsetOption,                                        
+                                         numGamesOption, 
+                                         timeStepOption, 
+                                         yAxisOption);
+
   return (
     <div className="App">
       {isLoading ? 
       (<p>LOADING...</p>) : 
-      (<Line data={data} />)}
+      (<Line data={data} options={options}/>)}
     </div>
   );
 

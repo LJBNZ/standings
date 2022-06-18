@@ -1,3 +1,4 @@
+import json
 from flask import Flask, render_template
 from flask_cors import CORS
 
@@ -9,7 +10,8 @@ CORS(app)   # Make all routes return CORS-allow headers as part of response
 
 @app.route("/teamData", methods=['GET'])
 def graph_data_raw():
-    return str(get_graph_data())
+    return json.dumps(get_graph_data())
+
 
 
 @app.route("/standings", methods=['GET'])
