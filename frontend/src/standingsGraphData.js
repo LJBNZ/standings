@@ -7,8 +7,8 @@ const standingsGraphTeamOptions = {
     all: 'All',
     east: 'East',
     west: 'West',
-    // hottest: 'hottest 🔥', TODO
-    // coldest: 'coldest ❄️'  TODO
+    // hottest: 'Hottest 🔥',
+    // coldest: 'Coldest ❄️'
 }
 
 const standingsGraphXAxisGamesOptions = {
@@ -18,7 +18,7 @@ const standingsGraphXAxisGamesOptions = {
     40: 40
 }
 
-const standingsGraphXAxisTimeResolutionOptions = {
+const standingsGraphXAxisTimeScaleOptions = {
     gameToGame: 'game-to-game',
     weekToWeek: 'week-to-week',
     monthToMonth: 'month-to-month'
@@ -31,16 +31,32 @@ const standingsGraphYAxisOptions = {
 
 const xAxisOriginLabel = '';
 
+const skipped = (ctx, value) => ctx.p0.skip || ctx.p1.skip ? value : undefined;
 
 // The basic graph options
 const standingsGraphOptionsBase = {
     spanGaps: true,
+    segment: {
+        borderColor: ctx => skipped(ctx, 'rgb(0,0,0,0.2)'),
+        borderDash: ctx => skipped(ctx, [6, 6]),
+      },
     layout: {
         padding: IMAGE_POINT_SIZE_PX
     },
     scales: {
         x: {
             type: 'category',
+            title: {
+                text: '',
+                display: true
+            }
+        },
+        y: {
+            type: 'linear',
+            title: {
+                text: '',
+                display: true
+            }
         }
     },
     elements: {
@@ -277,13 +293,8 @@ function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, y
         datasets.push(teamDataset);
     }
 
-    // Format the week number string labels for plotting on the x-axis
-    var labels = [xAxisOriginLabel]; 
-    xAxisWeekNumbers.forEach(weekNum => {
-        labels.push("Week " + weekNum.toString());
-    });
-
-    return {labels: labels, datasets: datasets};
+    xAxisWeekNumbers.splice(0, 0, xAxisOriginLabel);   // Add origin label for x-axis
+    return {labels: xAxisWeekNumbers, datasets: datasets};
 }
 
 
@@ -318,7 +329,7 @@ function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate,
 function getStandingsGraphDataFromTeamData(teamData,             // The team JSON data
                                            teamSubsetOption,     // One of standingsGraphTeamOptions
                                            xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
-                                           xAxisTimeStepOption,  // One of standingsGraphXAxisTimeResolutionOptions
+                                           xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
                                            yAxisTypeOption) {    // One of standingsGraphYAxisOptions
 
     if (teamData.length == undefined) {
@@ -357,11 +368,11 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
     }
 
 
-    if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.gameToGame) {
+    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
         var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, yAxisTypeOption);
-    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.weekToWeek) {
+    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
         data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, yAxisTypeOption);
-    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.monthToMonth) {
+    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
         data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, yAxisTypeOption);
     }
 
@@ -372,20 +383,27 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
 
 function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraphTeamOptions
                                   xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
-                                  xAxisTimeStepOption,  // One of standingsGraphXAxisTimeResolutionOptions
+                                  xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
                                   yAxisTypeOption) {    // One of standingsGraphYAxisOptions
     var options = standingsGraphOptionsBase;
-    // if (xAxisTimeStepOption === standingsGraphXAxisTimeResolutionOptions.gameToGame) {
-    //     options.scales.x.type = 'category';
-    // } else {
-    //     options.scales.x.type = 'category';
-    // }
+    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
+        options.scales.x.title.text = 'Game number'
+    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+        options.scales.x.title.text = 'Week number'
+    } else {
+        options.scales.x.title.text = 'Month'
+    }
+    if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
+        options.scales.y.title.text = 'Games above .500'
+    } else {
+        options.scales.x.title.text = 'Seed number'
+    }
     return options;
 }
 
 export { standingsGraphTeamOptions, 
          standingsGraphXAxisGamesOptions, 
-         standingsGraphXAxisTimeResolutionOptions, 
+         standingsGraphXAxisTimeScaleOptions, 
          standingsGraphYAxisOptions, 
          getStandingsGraphDataFromTeamData,
          getStandingsGraphOptions };
