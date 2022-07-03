@@ -11,7 +11,7 @@ function GraphOption(props) {
     }
 
     return (
-        <select defaultValue={props.default} name={props.name} onChange={handleChange}>
+        <select defaultValue={props.selected} name={props.name} onChange={handleChange}>
             {options}
         </select>
     );

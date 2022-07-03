@@ -11,10 +11,14 @@ from nba_api.stats.static import teams
 
 from . import supplementary_team_data
 
-SEASON_YEAR = '2021-22'
+CURRENT_SEASON = '2021-22'
 SEASON_TYPE = 'Regular Season'
 
-TEAM_DATA_FILE = os.path.join(os.path.dirname(__file__), 'teamdata')
+
+def _get_cached_season_data_file_path(season_year: str):
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'season_data_caches', season_year))
+    print(path)
+    return path
 
 
 @dataclass
@@ -68,8 +72,8 @@ def _get_parsed_game_logs(game_logs: Dict) -> List[Game]:
     return games
             
 
-def _get_game_logs_for_team(team_id: int) -> List[Game]:
-    game_logs_data = TeamGameLogs(season_nullable=SEASON_YEAR, season_type_nullable=SEASON_TYPE, team_id_nullable=team_id)
+def _get_game_logs_for_team(team_id: int, season_year: str) -> List[Game]:
+    game_logs_data = TeamGameLogs(season_nullable=season_year, season_type_nullable=SEASON_TYPE, team_id_nullable=team_id)
     game_logs = _get_parsed_game_logs(game_logs_data.team_game_logs.data)
     return game_logs
 
@@ -93,8 +97,8 @@ def _get_standings_info_for_team(league_standings_response, team_id: int) -> Tup
     return (conference, division, last_ten, current_streak)
 
 
-def _get_teams_data() -> List[Team]:
-    league_standings = LeagueStandingsV3(season=SEASON_YEAR, season_type=SEASON_TYPE)
+def _get_teams_data(season_year: str) -> List[Team]:
+    league_standings = LeagueStandingsV3(season=season_year, season_type=SEASON_TYPE)
     all_teams_raw = teams.get_teams()
 
     all_teams = []
@@ -111,7 +115,7 @@ def _get_teams_data() -> List[Team]:
 
         # Team game logs
         print(f'Getting data for {team_name}...')
-        games = _get_game_logs_for_team(team_id)
+        games = _get_game_logs_for_team(team_id, season_year)
         
         all_teams.append(Team(team_name, 
                               primary_colour,
@@ -126,7 +130,7 @@ def _get_teams_data() -> List[Team]:
     # After compiling data for all teams, determine each teams' league-wide ranking
     # (This is required to be done manually as the endpoint currently returns bad ranking data)
     sorted_team_win_loss_ratio = sorted([((team.games[-1].cumulative_wins / team.games[-1].cumulative_losses), team.name)
-                                            for team in all_teams], reverse=True)
+                                        for team in all_teams], reverse=True)
     teams_ordered_by_rank = [team for _ratio, team in sorted_team_win_loss_ratio]
 
     for team in all_teams:
@@ -135,26 +139,33 @@ def _get_teams_data() -> List[Team]:
     return all_teams
 
 
-def _load_team_data():
-    with open(TEAM_DATA_FILE, 'rb') as file:
+def _load_cached_season_data(cached_season_data_path):
+    with open(cached_season_data_path, 'rb') as file:
         data = pickle.load(file)
         return data   
 
 
-def _store_team_data():
-    data = _get_teams_data()
-    with open(TEAM_DATA_FILE, 'wb') as file:
-        pickle.dump(data, file)
+def _cache_season_data(season_data, cache_file_path):
+    with open(cache_file_path, 'wb') as file:
+        pickle.dump(season_data, file)
 
 
-def _get_team_games_data():
-    if not os.path.exists(TEAM_DATA_FILE):
-        _store_team_data()
-    raw_teams_data = _load_team_data()
-    jsonified_teams_data = [team.as_dict() for team in raw_teams_data]
+def _get_team_games_data(season_year: str):
+    cached_season_data_path = _get_cached_season_data_file_path(season_year)
+    if os.path.exists(cached_season_data_path):
+        # Cached data exists, load it
+        season_data = _load_cached_season_data(cached_season_data_path)
+    else:
+        # No cached data exists for the season, request it and cache it
+        season_data = _get_teams_data(season_year)
+        _cache_season_data(season_data, cached_season_data_path)
+    
+    # Return JSON-ifiable representations of team data
+    jsonified_teams_data = [team.as_dict() for team in season_data]
     return jsonified_teams_data
 
 
-def get_graph_data():
-    team_data = _get_team_games_data()
-    return team_data
+def get_standings_graph_team_data(season_year: str):
+    """ Entry point for the server to request the (JSON) team data for a given season. """
+    team_data = _get_team_games_data(season_year)
+    return json.dumps(team_data)

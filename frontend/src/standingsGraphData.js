@@ -29,6 +29,27 @@ const standingsGraphYAxisOptions = {
     seed: 'seed'
 }
 
+const standingsGraphSeasonOptions = {
+    2022: '2021-22',
+    2021: '2020-21',
+    2020: '2019-20',
+    2019: '2018-19',
+    2018: '2017-18',
+    2017: '2016-17',
+    2016: '2015-16',
+    2015: '2014-15',
+    2014: '2013-14',
+    2013: '2012-13',
+    2012: '2011-12',
+    2011: '2010-11',
+    2010: '2009-10',
+    2009: '2008-09',
+    2008: '2007-08',
+    2007: '2006-07',
+    2006: '2005-06',
+    2005: '2004-05',
+}
+
 const xAxisOriginLabel = '';
 
 const skipped = (ctx, value) => ctx.p0.skip || ctx.p1.skip ? value : undefined;
@@ -404,7 +425,8 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
 export { standingsGraphTeamOptions, 
          standingsGraphXAxisGamesOptions, 
          standingsGraphXAxisTimeScaleOptions, 
-         standingsGraphYAxisOptions, 
+         standingsGraphYAxisOptions,
+         standingsGraphSeasonOptions,
          getStandingsGraphDataFromTeamData,
          getStandingsGraphOptions };
 
