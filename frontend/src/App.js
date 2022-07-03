@@ -3,11 +3,12 @@ import './App.css';
 import { standingsGraphTeamOptions, 
          standingsGraphXAxisGamesOptions, 
          standingsGraphXAxisTimeScaleOptions, 
-         standingsGraphYAxisOptions, 
+         standingsGraphYAxisOptions,
+         standingsGraphSeasonOptions,
          getStandingsGraphDataFromTeamData,
          getStandingsGraphOptions } from './standingsGraphData';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Chart as ChartJS } from 'chart.js/auto'
 import { Chart, Line } from 'react-chartjs-2';
 
@@ -17,6 +18,8 @@ const teamSubsetDefault = standingsGraphTeamOptions.all;
 const numGamesDefault = standingsGraphXAxisGamesOptions.all;
 const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameToGame;
 const yAxisDefault = standingsGraphYAxisOptions.record;
+const seasonDefault = standingsGraphSeasonOptions[2022];
+
 
 function App() {
 
@@ -24,13 +27,14 @@ function App() {
   const [numGamesOption, setNumGamesOption] = useState(numGamesDefault);
   const [timeScaleOption, setTimeScaleOption] = useState(timeScaleDefault);
   const [yAxisOption, setYAxisOption] = useState(yAxisDefault);
+  const [seasonOption, setSeasonOption] = useState(seasonDefault);
 
   const [teamData, setTeamData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(()=>{
     setIsLoading(true);
-    fetch('/teamData')
+    fetch(`/nba/${seasonOption}`)
       .then(res => res.json())
         .then(
           (result) => {
@@ -41,7 +45,7 @@ function App() {
             console.log(error);
           }
         )
-  }, []);
+  }, [seasonOption]);
 
   let data = getStandingsGraphDataFromTeamData(teamData, 
                                                teamSubsetOption, 
@@ -54,10 +58,11 @@ function App() {
                                          timeScaleOption, 
                                          yAxisOption);
 
-  const teamSubsetOptions = {name: "teamSubsetOptions", options: standingsGraphTeamOptions, default: teamSubsetDefault, setter: setTeamSubsetOption};
-  const numGamesOptions = {name: "numGamesOptions", options: standingsGraphXAxisGamesOptions, default: numGamesDefault, setter: setNumGamesOption};
-  const timeScaleOptions = {name: "timeScaleOptions", options: standingsGraphXAxisTimeScaleOptions, default: timeScaleDefault, setter: setTimeScaleOption};
-  const yAxisOptions = {name: "yAxisOptions", options: standingsGraphYAxisOptions, default: yAxisDefault, setter: setYAxisOption};
+  const teamSubsetOptions = {name: "teamSubsetOptions", options: standingsGraphTeamOptions, selected: teamSubsetOption, setter: setTeamSubsetOption};
+  const numGamesOptions = {name: "numGamesOptions", options: standingsGraphXAxisGamesOptions, selected: numGamesOption, setter: setNumGamesOption};
+  const timeScaleOptions = {name: "timeScaleOptions", options: standingsGraphXAxisTimeScaleOptions, selected: timeScaleOption, setter: setTimeScaleOption};
+  const yAxisOptions = {name: "yAxisOptions", options: standingsGraphYAxisOptions, selected: yAxisOption, setter: setYAxisOption};
+  const seasonOptions = {name: "seasonOptions", options: standingsGraphSeasonOptions, selected: seasonOption, setter: setSeasonOption};
 
   if (isLoading) {
     return <p>LOADING...</p>
@@ -65,7 +70,11 @@ function App() {
     return (
       <div className="App">
         <Line data={data} options={options}/>
-        <GraphOptions teamSubsetOptions={teamSubsetOptions} numGamesOptions={numGamesOptions} timeScaleOptions={timeScaleOptions} yAxisOptions={yAxisOptions} />
+        <GraphOptions teamSubsetOptions={teamSubsetOptions} 
+                      numGamesOptions={numGamesOptions} 
+                      timeScaleOptions={timeScaleOptions} 
+                      yAxisOptions={yAxisOptions}
+                      seasonOptions={seasonOptions} />
         
       </div>
     )
