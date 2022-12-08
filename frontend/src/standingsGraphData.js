@@ -1,3 +1,6 @@
+import { externalTooltipHandler } from './standingsGraphTooltipHandler';
+
+
 const GAMES_PER_SEASON = 82;
 const IMAGE_POINT_SIZE_PX = 30;
 
@@ -30,6 +33,7 @@ const standingsGraphYAxisOptions = {
 }
 
 const standingsGraphSeasonOptions = {
+    2023: '2022-23',
     2022: '2021-22',
     2021: '2020-21',
     2020: '2019-20',
@@ -52,15 +56,19 @@ const standingsGraphSeasonOptions = {
 
 const xAxisOriginLabel = '';
 
-const skipped = (ctx, value) => ctx.p0.skip || ctx.p1.skip ? value : undefined;
+// const skipped = (ctx, value) => ctx.p0.skip || ctx.p1.skip ? value : undefined;
 
 // The basic graph options
 const standingsGraphOptionsBase = {
+    interaction: {
+        intersect: true,
+        mode: 'nearest',
+    },
     spanGaps: true,
-    segment: {
-        borderColor: ctx => skipped(ctx, 'rgb(0,0,0,0.2)'),
-        borderDash: ctx => skipped(ctx, [6, 6]),
-      },
+    // segment: {
+    //     borderColor: ctx => skipped(ctx, 'rgb(0,0,0,0.2)'),
+    //     borderDash: ctx => skipped(ctx, [6, 6]),
+    //   },
     layout: {
         padding: IMAGE_POINT_SIZE_PX
     },
@@ -94,14 +102,9 @@ const standingsGraphOptionsBase = {
             display: false
         },
         tooltip: {
-            xAlign: 'right',
-            yAlign: 'top',
-            caretPadding: 8,
-            cornerRadius: 0,
-            filter: function(tooltipItem) {
-                // Don't show tooltip for x-axis origin point
-                return tooltipItem.dataIndex !== 0;
-            }
+            enabled: false,
+            position: 'nearest',
+            external: externalTooltipHandler,
         }
     },
     onHover: onHoverHandler, 
@@ -114,6 +117,7 @@ const teamGraphDatasetBase = {
     tension: 0.3,
     clip: {left: false, top: false, right: IMAGE_POINT_SIZE_PX, bottom: false},
     hidden: false,
+    pointHitRadius: 10,
 }
 
 
@@ -162,7 +166,7 @@ function _getDataForGamesByMonthNum(games, xAxisMonthNumbers, yAxisType) {
     }
 
     data.splice(0, 0, 0);   // Add origin point
-    return data;
+    return [data, gamesByMonthNum];
 }
 
 function _getDataForGamesByWeekNum(games, seasonStartDate, xAxisWeekNumbers, yAxisType) {
@@ -201,7 +205,7 @@ function _getDataForGamesByWeekNum(games, seasonStartDate, xAxisWeekNumbers, yAx
     }
 
     data.splice(0, 0, 0);   // Add origin point
-    return data;
+    return [data, gamesByWeekNum];
 }
 
 function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
@@ -211,8 +215,11 @@ function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
         yAxisDataByGameNum.set(gameNum, null);
     });
 
+    var gameByGameNum = new Map();
+
     for (var i = 0; i < games.length; i++) {
         let game = games[i];
+        gameByGameNum.set(game.game_num, game);
         if (yAxisDataByGameNum.has(game.game_num)) {
             if (yAxisType === standingsGraphYAxisOptions.record) {
                 yAxisDataByGameNum.set(game.game_num, (game.cumulative_wins - game.cumulative_losses));
@@ -224,14 +231,17 @@ function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
 
     var data = Array.from(yAxisDataByGameNum.values());
     data.splice(0, 0, 0);   // Add origin point
-    return data;
+    return [data, gameByGameNum];
 }
 
+function _getLogoURLForTeamName(teamName) {
+    var imageName = teamName.toLowerCase().replace(/ /g, '_');
+    return `./img/${imageName}.png`;
+}
 
 function _getLogoImageForTeamName(teamName) {
     var teamLogo = new Image(IMAGE_POINT_SIZE_PX, IMAGE_POINT_SIZE_PX);
-    var imageName = teamName.toLowerCase().replace(/ /g, '_');
-    teamLogo.src = `./img/${imageName}.png`;
+    teamLogo.src = _getLogoURLForTeamName(teamName);
     return teamLogo;
 }
 
@@ -258,23 +268,28 @@ function _setDatasetPointStyling(dataset) {
 }
 
 
-function _getDatasetForTeamData(team, data) {
+function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, gamesByTimestep) {
     var dataset = {
         ...teamGraphDatasetBase,
-        team: team,
         label: team.name,
         data: data,
         backgroundColor: team.secondary_colour,
         borderColor: team.primary_colour,
         order: team.league_rank,
-        // pointHoverRadius: linePointHoverRadii,
+
+        // Custom attributes
+        yAxisOption: yAxisOption,
+        xAxisTimeStepOption: xAxisTimeStepOption,
+        gamesByTimestep: gamesByTimestep,
+        team: team,
+        logoURL: _getLogoURLForTeamName(team.name),
     }
 
     _setDatasetPointStyling(dataset);
     return dataset;
 }
 
-function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOption, yAxisTypeOption) {
+function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption) {
 
     // Get the game numbers to plot on the x-axis
     var xAxisGameNumbers = [];
@@ -286,8 +301,8 @@ function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOp
     var datasets = [];
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         var team = teamData[teamIdx];
-        var data = _getDataForGamesByGameNum(team.games, xAxisGameNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data);
+        var [data, gameByGameNum] = _getDataForGamesByGameNum(team.games, xAxisGameNumbers, yAxisTypeOption);
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gameByGameNum);
         datasets.push(teamDataset);
     }
 
@@ -296,7 +311,7 @@ function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOp
 }
 
 
-function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, yAxisTypeOption) {
+function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption) {
 
     // Get the week numbers to plot on the x-axis
     var xAxisWeekNumbers = [];
@@ -309,8 +324,8 @@ function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, y
     var datasets = [];
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         var team = teamData[teamIdx];
-        var data = _getDataForGamesByWeekNum(team.games, seasonStartDate, xAxisWeekNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data);
+        var [data, gamesByWeekNum] = _getDataForGamesByWeekNum(team.games, seasonStartDate, xAxisWeekNumbers, yAxisTypeOption);
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gamesByWeekNum);
         datasets.push(teamDataset);
     }
 
@@ -319,21 +334,23 @@ function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, y
 }
 
 
-function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate, yAxisTypeOption) {
+function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption) {
 
     // Get the month numbers to plot on the x-axis
     var xAxisMonthNumbers = [];
-    for (let iterDate = new Date(seasonStartDate.getTime()); iterDate.getMonth() != latestGameDate.getMonth() + 1; iterDate.setMonth(iterDate.getMonth() + 1)) {
-        let a = 1;
-        xAxisMonthNumbers.push(iterDate.getMonth());
-    }
+    var iterDate = new Date(seasonStartDate.getTime())
+    do {
+        var currentMonth = iterDate.getMonth();
+        xAxisMonthNumbers.push(currentMonth);
+        iterDate.setMonth(currentMonth + 1);
+    } while (currentMonth != latestGameDate.getMonth())
 
     // Get the month-by-month dataset for each team
     var datasets = [];
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         var team = teamData[teamIdx];
-        var data = _getDataForGamesByMonthNum(team.games, xAxisMonthNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data);
+        var [data, gamesByMonth] = _getDataForGamesByMonthNum(team.games, xAxisMonthNumbers, yAxisTypeOption);
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gamesByMonth);
         datasets.push(teamDataset);
     }
 
@@ -390,11 +407,11 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
 
 
     if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-        var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, yAxisTypeOption);
+        var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-        data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, yAxisTypeOption);
+        data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
-        data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, yAxisTypeOption);
+        data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
     }
 
 
@@ -421,14 +438,6 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
     }
     return options;
 }
-
-export { standingsGraphTeamOptions, 
-         standingsGraphXAxisGamesOptions, 
-         standingsGraphXAxisTimeScaleOptions, 
-         standingsGraphYAxisOptions,
-         standingsGraphSeasonOptions,
-         getStandingsGraphDataFromTeamData,
-         getStandingsGraphOptions };
 
 
 function onHoverHandler(event, activeElements, chart) {
@@ -460,3 +469,14 @@ function onHoverHandler(event, activeElements, chart) {
 
     chart.update();
 }
+
+
+export { standingsGraphTeamOptions, 
+    standingsGraphXAxisGamesOptions, 
+    standingsGraphXAxisTimeScaleOptions, 
+    standingsGraphYAxisOptions,
+    standingsGraphSeasonOptions,
+    months,
+    getStandingsGraphDataFromTeamData,
+    getStandingsGraphOptions,
+   };

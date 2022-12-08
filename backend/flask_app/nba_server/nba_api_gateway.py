@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 import time
 from typing import  Any, Dict, List, Tuple
@@ -6,12 +7,14 @@ import os
 import pickle
 
 from nba_api.stats.endpoints.leaguestandingsv3 import LeagueStandingsV3
+from nba_api.stats.endpoints.leaguegamefinder import LeagueGameFinder
 from nba_api.stats.endpoints.teamgamelogs import TeamGameLogs
 from nba_api.stats.static import teams
 
 from . import supplementary_team_data
 
-CURRENT_SEASON = '2021-22'
+NBA_LEAGUE_ID = '00'
+CURRENT_SEASON = '2022-23'
 SEASON_TYPE = 'Regular Season'
 
 
@@ -27,6 +30,8 @@ class Game():
     game_num: int
     date: Any
     matchup: str
+    team_score: int
+    opponent_score: int
     outcome: str
     cumulative_wins: int
     cumulative_losses: int
@@ -35,6 +40,7 @@ class Game():
 @dataclass
 class Team():
     name: str
+    slug: str
     primary_colour: str
     secondary_colour: str
     conference: str
@@ -50,31 +56,35 @@ class Team():
         return attrs
 
 
-def _get_parsed_game_logs(game_logs: Dict) -> List[Game]:
+def _get_parsed_game_logs(game_logs: Dict, team_id: int, team_scores_by_game_id: Dict) -> List[Game]:
     id_column_idx = game_logs['headers'].index('GAME_ID')
     date_column_idx = game_logs['headers'].index('GAME_DATE')
     matchup_column_idx = game_logs['headers'].index('MATCHUP')
+    team_abbrv_column_idx = game_logs['headers'].index('TEAM_ABBREVIATION')
     outcome_column_idx = game_logs['headers'].index('WL')
 
     games = []
     n_wins = n_losses = 0
     for game_num, raw_game_data in enumerate(reversed(game_logs['data']), start=1):
-        game_id = int(raw_game_data[id_column_idx])
+        game_id = raw_game_data[id_column_idx]
+        team_score = team_scores_by_game_id[game_id][team_id]
+        opponent_score = next(score for t_id, score in team_scores_by_game_id[game_id].items() if t_id != team_id)
         game_date = raw_game_data[date_column_idx]
-        matchup = raw_game_data[matchup_column_idx]
+        team_abbrv = raw_game_data[team_abbrv_column_idx]
+        matchup = raw_game_data[matchup_column_idx].replace(team_abbrv, '').strip()  # Strip team name from matchup string
         outcome = raw_game_data[outcome_column_idx]
         if outcome == 'W':
             n_wins += 1
         else:
             n_losses += 1
-        games.append(Game(game_id, game_num, game_date, matchup, outcome, n_wins, n_losses))
+        games.append(Game(game_id, game_num, game_date, matchup, team_score, opponent_score, outcome, n_wins, n_losses))
 
     return games
             
 
-def _get_game_logs_for_team(team_id: int, season_year: str) -> List[Game]:
+def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_id: Dict) -> List[Game]:
     game_logs_data = TeamGameLogs(season_nullable=season_year, season_type_nullable=SEASON_TYPE, team_id_nullable=team_id)
-    game_logs = _get_parsed_game_logs(game_logs_data.team_game_logs.data)
+    game_logs = _get_parsed_game_logs(game_logs_data.team_game_logs.data, team_id, team_scores_by_game_id)
     return game_logs
 
 
@@ -97,9 +107,29 @@ def _get_standings_info_for_team(league_standings_response, team_id: int) -> Tup
     return (conference, division, last_ten, current_streak)
 
 
+def _get_team_scores_by_game_id(all_games):
+    # Creates a map of scores for each game by team ID
+    game_id_column_idx = all_games['headers'].index('GAME_ID')
+    team_id_column_idx = all_games['headers'].index('TEAM_ID')
+    points_column_idx = all_games['headers'].index('PTS')
+    
+    scores_by_game_id = defaultdict(dict)
+
+    for game in all_games['data']:
+        game_id = game[game_id_column_idx]
+        team_id = game[team_id_column_idx]
+        team_score = game[points_column_idx]
+        scores_by_game_id[game_id][team_id] = team_score
+
+    return scores_by_game_id
+
+
 def _get_teams_data(season_year: str) -> List[Team]:
     league_standings = LeagueStandingsV3(season=season_year, season_type=SEASON_TYPE)
     all_teams_raw = teams.get_teams()
+
+    season_games = LeagueGameFinder(season_nullable=season_year, season_type_nullable=SEASON_TYPE, league_id_nullable=NBA_LEAGUE_ID).data_sets[0].data
+    team_scores_by_game_id = _get_team_scores_by_game_id(season_games)
 
     all_teams = []
     for raw_team_data in all_teams_raw:
@@ -108,6 +138,7 @@ def _get_teams_data(season_year: str) -> List[Team]:
         # Team basic info
         team_id = raw_team_data['id']
         team_name = raw_team_data['full_name']
+        team_slug = raw_team_data['abbreviation']
         primary_colour, secondary_colour = supplementary_team_data.get_colours_for_team(team_name)
 
         # Team standings info
@@ -115,9 +146,10 @@ def _get_teams_data(season_year: str) -> List[Team]:
 
         # Team game logs
         print(f'Getting data for {team_name}...')
-        games = _get_game_logs_for_team(team_id, season_year)
+        games = _get_game_logs_for_team(team_id, season_year, team_scores_by_game_id)
         
-        all_teams.append(Team(team_name, 
+        all_teams.append(Team(team_name,
+                              team_slug,
                               primary_colour,
                               secondary_colour,
                               conference,

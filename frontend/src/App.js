@@ -18,7 +18,7 @@ const teamSubsetDefault = standingsGraphTeamOptions.all;
 const numGamesDefault = standingsGraphXAxisGamesOptions.all;
 const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameToGame;
 const yAxisDefault = standingsGraphYAxisOptions.record;
-const seasonDefault = standingsGraphSeasonOptions[2022];
+const seasonDefault = standingsGraphSeasonOptions[2023];
 
 
 function App() {
