@@ -11,8 +11,10 @@ import { standingsGraphTeamOptions,
 import React, { useEffect, useMemo, useState } from 'react';
 import { Chart as ChartJS } from 'chart.js/auto'
 import { Chart, Line } from 'react-chartjs-2';
+import { defaults } from 'chart.js';
 
 import GraphOptions from './GraphOptions';
+import styled, { createGlobalStyle } from 'styled-components';
 
 const teamSubsetDefault = standingsGraphTeamOptions.all;
 const numGamesDefault = standingsGraphXAxisGamesOptions.all;
@@ -20,6 +22,22 @@ const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameToGame;
 const yAxisDefault = standingsGraphYAxisOptions.record;
 const seasonDefault = standingsGraphSeasonOptions[2023];
 
+const GlobalStyle = createGlobalStyle`
+  body {
+    background-color: #e0e0e0;
+  }
+`
+
+const StyledApp = styled.div`
+  font-family: Inconsolata;
+  margin: auto;
+  width: 75%;
+`
+
+defaults.font.family = 'Inconsolata';
+defaults.color = '#292929'; 
+defaults.borderColor = 'rgba(0, 0, 0, 0.2)';
+defaults.backgroundColor = 'rgba(0, 0, 0, 1)';
 
 function App() {
 
@@ -68,15 +86,18 @@ function App() {
     return <p>LOADING...</p>
   } else {
     return (
-      <div className="App">
-        <Line data={data} options={options}/>
-        <GraphOptions teamSubsetOptions={teamSubsetOptions} 
-                      numGamesOptions={numGamesOptions} 
-                      timeScaleOptions={timeScaleOptions} 
-                      yAxisOptions={yAxisOptions}
-                      seasonOptions={seasonOptions} />
-        
-      </div>
+      <>
+        <GlobalStyle />
+        <StyledApp className="App">
+          <Line data={data} options={options}/>
+          <GraphOptions teamSubsetOptions={teamSubsetOptions} 
+                        numGamesOptions={numGamesOptions} 
+                        timeScaleOptions={timeScaleOptions} 
+                        yAxisOptions={yAxisOptions}
+                        seasonOptions={seasonOptions} />
+          
+        </StyledApp>
+      </>
     )
   }
 }

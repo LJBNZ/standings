@@ -1,4 +1,8 @@
+import styled from "styled-components";
 
+const StyledSelect = styled.select`
+    font-family: 'Inconsolata';
+`
 function GraphOption(props) {
 
     const handleChange = event => {
@@ -11,9 +15,9 @@ function GraphOption(props) {
     }
 
     return (
-        <select defaultValue={props.selected} name={props.name} onChange={handleChange}>
+        <StyledSelect defaultValue={props.selected} name={props.name} onChange={handleChange}>
             {options}
-        </select>
+        </StyledSelect>
     );
 }
 

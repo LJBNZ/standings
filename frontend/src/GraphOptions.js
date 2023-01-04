@@ -1,4 +1,6 @@
 import GraphOption from './GraphOption';
+import styled from 'styled-components'
+
 
 function GraphOptions(props) {
     const teamSubsetOptions = props.teamSubsetOptions;
