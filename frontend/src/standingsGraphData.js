@@ -7,9 +7,9 @@ const IMAGE_POINT_SIZE_PX = 30;
 // Standings graph user options
 
 const standingsGraphTeamOptions = {
-    all: 'All',
-    east: 'East',
-    west: 'West',
+    all: 'all',
+    east: 'east',
+    west: 'west',
     // hottest: 'Hottest 🔥',
     // coldest: 'Coldest ❄️'
 }
@@ -85,6 +85,9 @@ const standingsGraphOptionsBase = {
             title: {
                 text: '',
                 display: true
+            },
+            ticks: {
+                count: undefined,
             }
         }
     },
@@ -364,6 +367,59 @@ function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate,
 }
 
 
+function _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption) {
+    var datasets = [];
+    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
+        var team = teamData[teamIdx];
+        if (teamSubsetOption === standingsGraphTeamOptions.all) {
+            var rankOverTime = team.league_rank_by_date;
+        } else {
+            rankOverTime = team.conference_seed_by_date;
+        }
+
+        var data = [];
+        var labels = [];
+        var ranksByTimeStep = new Map();
+
+        var firstDateString = Object.keys(rankOverTime)[0];
+        var firstDate = new Date();
+        firstDate.setTime(Date.parse(firstDateString));
+
+        var lastDateString = Object.keys(rankOverTime)[Object.keys(rankOverTime).length - 1];
+        var lastDate = new Date();
+        lastDate.setTime(Date.parse(lastDateString));
+        for (const [date, rank] of Object.entries(rankOverTime)) {
+            var parsedDate = new Date();
+            parsedDate.setTime(Date.parse(date));
+
+            if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+                var weeksSinceStart = Math.floor((parsedDate - firstDate) / weekInMilliseconds) + 1;
+                var weekDate = new Date();
+                weekDate.setTime(firstDate.getTime());
+                weekDate.setDate(weekDate.getDate() + (weeksSinceStart * 7) - 1);
+                if (weekDate > lastDate) {
+                    weekDate.setTime(lastDate.getTime());
+                }
+                ranksByTimeStep.set(weekDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
+            } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
+                ranksByTimeStep.set(parsedDate.toLocaleString('default', {month: 'short'}), rank);
+            } else {
+                ranksByTimeStep.set(parsedDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
+            }
+        }
+        
+        for (const [dateString, rank] of ranksByTimeStep) {
+            labels.push(dateString);
+            data.push(rank);
+        }
+
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption);
+        datasets.push(teamDataset);
+    }
+    return {labels: labels, datasets: datasets};
+}
+
+
 function getStandingsGraphDataFromTeamData(teamData,             // The team JSON data
                                            teamSubsetOption,     // One of standingsGraphTeamOptions
                                            xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
@@ -405,15 +461,18 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
         teamData = teamDataSubset;
     }
 
-
-    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-        var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
-    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-        data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
-    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
-        data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
+    
+    if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
+        if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
+            var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
+        } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+            data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
+        } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
+            data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
+        } 
+    } else {
+        data = _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption);
     }
-
 
     return data;
 }
@@ -425,16 +484,35 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
                                   yAxisTypeOption) {    // One of standingsGraphYAxisOptions
     var options = standingsGraphOptionsBase;
     if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-        options.scales.x.title.text = 'Game number'
+        options.scales.x.title.text = 'Game number';
     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-        options.scales.x.title.text = 'Week number'
+        options.scales.x.title.text = 'Week number';
     } else {
-        options.scales.x.title.text = 'Month'
+        options.scales.x.title.text = 'Month';
     }
     if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
-        options.scales.y.title.text = 'Games above .500'
+        options.scales.y.reverse = false;
+        options.scales.y.title.text = 'Games above .500';
+        options.scales.y.min = undefined;
+        options.scales.y.max = undefined;
+        options.scales.y.ticks.count = undefined;
+        options.scales.y.ticks.autoSkip = true;
     } else {
-        options.scales.x.title.text = 'Seed number'
+        options.scales.x.title.text = 'Date';
+        options.scales.y.reverse = true;
+        if (teamSubsetOption === standingsGraphTeamOptions.all) {
+            options.scales.y.title.text = 'League-wide rank';
+            options.scales.y.min = 1;
+            options.scales.y.max = 30;
+            options.scales.y.ticks.count = 30;
+            options.scales.y.ticks.autoSkip = false;
+        } else {
+            options.scales.y.title.text = 'Team seed';
+            options.scales.y.min = 1;
+            options.scales.y.max = 15;
+            options.scales.y.ticks.count = 15;
+            options.scales.y.ticks.autoSkip = false;
+        }
     }
     return options;
 }
