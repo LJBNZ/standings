@@ -1,3 +1,8 @@
+from collections import defaultdict, OrderedDict
+from dataclasses import dataclass
+from typing import Any
+
+
 _DEFAULT_PRIMARY = "#c705f7"  # Purple
 _DEFAULT_SECONDARY = "#ffffff"   # White
 DEFAULT_TEAM_COLOURS = (_DEFAULT_PRIMARY, _DEFAULT_SECONDARY)   # Default colours if something goes wrong...
@@ -37,4 +42,59 @@ colours_by_team = {
 }
 
 def get_colours_for_team(team_name: str) -> tuple:
+    """Returns the primary and secondary colours for the team with the given name."""
     return colours_by_team.get(team_name, DEFAULT_TEAM_COLOURS)
+
+
+@dataclass
+class Game():
+    """Represents a single NBA game."""
+    id: str
+    game_num: int
+    date: Any
+    matchup: str
+    team_score: int
+    opponent_score: int
+    outcome: str
+    cumulative_wins: int
+    cumulative_losses: int
+    opponent: 'Team'
+
+    def to_json(self):
+        d = self.__dict__.copy()
+        del d['opponent']
+        return d
+
+
+class Team:
+    """Represents an NBA team."""
+    def __init__(self, 
+                 id: int,
+                 name: str,
+                 slug: str,
+                 primary_colour: str,
+                 secondary_colour: str,
+                 conference: str,
+                 division: str):
+        # Basic info
+        self.id = id
+        self.name = name
+        self.slug = slug
+        self.primary_colour = primary_colour
+        self.secondary_colour = secondary_colour
+        self.conference = conference
+        self.division = division
+        
+        # Ranking data
+        self.league_rank = None
+        self.league_rank_by_date = OrderedDict()
+        self.conference_seed_by_date = OrderedDict()
+
+    def to_json(self):
+        attrs = self.__dict__
+        attrs['games'] = [game.to_json() for game in self.games]
+        for key in list(attrs.keys()):
+            if key.startswith('_'):
+                del attrs[key]
+        return attrs
+    
