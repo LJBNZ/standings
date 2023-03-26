@@ -89,6 +89,7 @@ class TeamWithRecord:
         conference_seed = [t for t in ranked_teams if t.conference == self._team.conference].index(self) + 1
         self._team.conference_seed_by_date[date_string] = conference_seed
         self._team.league_rank_by_date[date_string] = league_rank
+        self._team.conference_seed = conference_seed
         self._team.league_rank = league_rank
 
     def get_win_pct_vs_team(self, team: 'TeamWithRecord'):

@@ -72,7 +72,7 @@ def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_
     return games
 
 
-def _get_team_conference_and_division(league_standings_response, team_id: int) -> Tuple[str, str]:
+def _get_team_standings_info(league_standings_response, team_id: int) -> dict[str, any]:
     """Gets the conference and division for the given team from the league standings data."""
     league_standings_headers = league_standings_response.standings.data['headers']
     league_standings_data = league_standings_response.standings.data['data']
@@ -83,11 +83,30 @@ def _get_team_conference_and_division(league_standings_response, team_id: int) -
             break
     else:
         raise RuntimeError(f"Cannot find data for team ID {team_id}")
-
-    conference = desired_team_standings_data[headers_to_data_indices['Conference']].lower()
-    division = desired_team_standings_data[headers_to_data_indices['Division']].lower()
     
-    return conference, division
+    data_keys_to_names = {'Conference': 'conference',
+                         'Division': 'division',
+                         'WINS': 'wins',
+                         'LOSSES': 'losses',
+                         'ConferenceGamesBack': 'games_back',
+                         'HOME': 'home',
+                         'ROAD': 'road',
+                         'PointsPG': 'points_per_game',
+                         'OppPointsPG': 'opponent_points_per_game',
+                         'DiffPointsPG': 'point_differential',
+                         'ClinchedPlayoffBirth': 'clinched_playoffs',
+                         'ClinchedPlayIn': 'clinched_playin',
+                         'L10': 'last_10',
+                         'CurrentStreak': 'streak',
+                         'EliminatedConference': 'eliminated'}
+    data = {}
+    for key in data_keys_to_names:
+        value = desired_team_standings_data[headers_to_data_indices[key]]
+        if isinstance(value, str):
+            value = value.strip().lower()
+        data[data_keys_to_names[key]] = value
+
+    return data
 
 
 def _get_team_scores_by_game_id(all_games):
@@ -121,9 +140,11 @@ def _get_teams_data(season_year: str) -> List[Team]:
         team_name = raw_team_data['full_name']
         team_slug = raw_team_data['abbreviation']
         primary_colour, secondary_colour = team_data.get_colours_for_team(team_name)
-        conference, division = _get_team_conference_and_division(league_standings, team_id)
+        team_standings_info = _get_team_standings_info(league_standings, team_id)
+        conference = team_standings_info['conference']
+        division = team_standings_info['division']
 
-        all_teams.append(Team(team_id, team_name, team_slug, primary_colour, secondary_colour, conference, division))
+        all_teams.append(Team(team_id, team_name, team_slug, primary_colour, secondary_colour, conference, division, team_standings_info))
 
     return all_teams
 
