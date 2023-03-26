@@ -37,7 +37,7 @@ colours_by_team = {
     "Sacramento Kings":       ("#5a2b81", "#63727a"),
     "San Antonio Spurs":      ("#000000", "#c4ced4"),
     "Toronto Raptors":        ("#000000", "#ce1141"),
-    "Utah Jazz":              ("#00471b", "#002b5c"),
+    "Utah Jazz":              ("#fff21f", "#000000"),
     "Washington Wizards":     ("#002b5c", "#e31837"),
 }
 
@@ -75,7 +75,8 @@ class Team:
                  primary_colour: str,
                  secondary_colour: str,
                  conference: str,
-                 division: str):
+                 division: str,
+                 standings_info: dict):
         # Basic info
         self.id = id
         self.name = name
@@ -84,9 +85,11 @@ class Team:
         self.secondary_colour = secondary_colour
         self.conference = conference
         self.division = division
+        self.standings_info = standings_info
         
         # Ranking data
         self.league_rank = None
+        self.conference_seed = None
         self.league_rank_by_date = OrderedDict()
         self.conference_seed_by_date = OrderedDict()
 
