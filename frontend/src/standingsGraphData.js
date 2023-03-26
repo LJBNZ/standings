@@ -108,6 +108,40 @@ const standingsGraphOptionsBase = {
             enabled: false,
             position: 'nearest',
             external: externalTooltipHandler,
+        },
+        autocolors: false,
+        annotation: {
+            annotations: {
+                playoffLine: {
+                    type: 'line',
+                    display: false,
+                    yMin: 6.5,
+                    yMax: 6.5,
+                    borderColor: 'rgb(132, 99, 255)',
+                    borderWidth: 2,
+                    borderDash: [10, 10],
+                    drawTime: 'beforeDatasetsDraw',
+                    label: {
+                        content: 'Playoff',
+                        display: true,
+                        backgroundColor: 'rgba(0,0,0,0)',
+                        color: 'rgb(132, 99, 255)'
+                    }
+                },
+                playinLine: {
+                    type: 'line',
+                    display: false,
+                    yMin: 10.5,
+                    yMax: 10.5,
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderWidth: 2,
+                    borderDash: [10, 10],
+                    label: {
+                        content: 'Play-in',
+                        display: true,
+                    }
+                }
+            }
         }
     },
     onHover: onHoverHandler, 

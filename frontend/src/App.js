@@ -9,12 +9,17 @@ import { standingsGraphTeamOptions,
          getStandingsGraphOptions } from './standingsGraphData';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Chart as ChartJS } from 'chart.js/auto'
-import { Chart, Line } from 'react-chartjs-2';
+import Chart from 'chart.js/auto';
+import { Line } from 'react-chartjs-2';
 import { defaults } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
 
 import GraphOptions from './GraphOptions';
+import StandingsTable from './Table';
 import styled, { createGlobalStyle } from 'styled-components';
+
+Chart.register(annotationPlugin);
+
 
 const teamSubsetDefault = standingsGraphTeamOptions.all;
 const numGamesDefault = standingsGraphXAxisGamesOptions.all;
@@ -32,6 +37,10 @@ const StyledApp = styled.div`
   font-family: Inconsolata;
   margin: auto;
   width: 75%;
+`
+
+const StandingsGraph = styled(Line)`
+
 `
 
 defaults.font.family = 'Inconsolata';
@@ -82,24 +91,20 @@ function App() {
   const yAxisOptions = {name: "yAxisOptions", options: standingsGraphYAxisOptions, selected: yAxisOption, setter: setYAxisOption};
   const seasonOptions = {name: "seasonOptions", options: standingsGraphSeasonOptions, selected: seasonOption, setter: setSeasonOption};
 
-  if (isLoading) {
-    return <p>LOADING...</p>
-  } else {
-    return (
-      <>
-        <GlobalStyle />
-        <StyledApp className="App">
-          <Line data={data} options={options}/>
-          <GraphOptions teamSubsetOptions={teamSubsetOptions} 
-                        numGamesOptions={numGamesOptions} 
-                        timeScaleOptions={timeScaleOptions} 
-                        yAxisOptions={yAxisOptions}
-                        seasonOptions={seasonOptions} />
-          
-        </StyledApp>
-      </>
-    )
-  }
+  return (
+    <>
+      <GlobalStyle/>
+      <StyledApp className="App">
+        <StandingsGraph data={data} options={options}/>
+        <StandingsTable data={data} teamSubset={teamSubsetOptions}/>
+        <GraphOptions teamSubsetOptions={teamSubsetOptions} 
+                      numGamesOptions={numGamesOptions} 
+                      timeScaleOptions={timeScaleOptions} 
+                      yAxisOptions={yAxisOptions}
+                      seasonOptions={seasonOptions}/>
+      </StyledApp>
+    </>
+  )
 }
 
 export default App;
