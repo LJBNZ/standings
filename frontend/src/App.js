@@ -1,5 +1,3 @@
-import './App.css';
-
 import { standingsGraphTeamOptions, 
          standingsGraphXAxisGamesOptions, 
          standingsGraphXAxisTimeScaleOptions, 
@@ -13,10 +11,12 @@ import Chart from 'chart.js/auto';
 import { Line } from 'react-chartjs-2';
 import { defaults } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
+import 'chartjs-adapter-luxon';
 
 import GraphOptions from './GraphOptions';
 import StandingsTable from './Table';
 import styled, { createGlobalStyle } from 'styled-components';
+
 
 Chart.register(annotationPlugin);
 
@@ -30,17 +30,17 @@ const seasonDefault = standingsGraphSeasonOptions[2023];
 const GlobalStyle = createGlobalStyle`
   body {
     background-color: #e0e0e0;
+    font-family: Inconsolata;
   }
 `
 
 const StyledApp = styled.div`
-  font-family: Inconsolata;
-  margin: auto;
-  width: 75%;
+  margin: 0 auto;
+  ${'' /* width: 75%; */}
+  display: inline;
 `
 
 const StandingsGraph = styled(Line)`
-
 `
 
 defaults.font.family = 'Inconsolata';
@@ -78,12 +78,14 @@ function App() {
                                                teamSubsetOption, 
                                                numGamesOption, 
                                                timeScaleOption, 
-                                               yAxisOption);
+                                               yAxisOption,
+                                               seasonOption);
 
   let options = getStandingsGraphOptions(teamSubsetOption,                                        
                                          numGamesOption, 
                                          timeScaleOption, 
-                                         yAxisOption);
+                                         yAxisOption,
+                                         seasonOption);
 
   const teamSubsetOptions = {name: "teamSubsetOptions", options: standingsGraphTeamOptions, selected: teamSubsetOption, setter: setTeamSubsetOption};
   const numGamesOptions = {name: "numGamesOptions", options: standingsGraphXAxisGamesOptions, selected: numGamesOption, setter: setNumGamesOption};
@@ -94,9 +96,17 @@ function App() {
   return (
     <>
       <GlobalStyle/>
+      <div style={{width: '300px', margin: '0 auto', textAlign: 'center'}}>
+        <h1>Cool heading</h1>
+        <h3>cooler subheading</h3>
+      </div>
       <StyledApp className="App">
-        <StandingsGraph data={data} options={options}/>
-        <StandingsTable data={data} teamSubset={teamSubsetOptions}/>
+        <div style={{margin: '20px', width: '40%', height: '60%', overflowX: 'auto', display: 'inline-block', verticalAlign: 'top'}}>
+          <StandingsGraph data={data} options={options} height={'800px'} width={'0px'}/>
+        </div>
+        <div style={{margin: '20px', width: '40%', height: '60%', overflowX: 'auto', overflowY: 'auto', display: 'inline-block', verticalAlign: 'top'}}>
+          <StandingsTable data={data} teamSubset={teamSubsetOptions}/>
+        </div>
         <GraphOptions teamSubsetOptions={teamSubsetOptions} 
                       numGamesOptions={numGamesOptions} 
                       timeScaleOptions={timeScaleOptions} 

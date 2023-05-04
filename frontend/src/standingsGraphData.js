@@ -1,8 +1,10 @@
 import { externalTooltipHandler } from './standingsGraphTooltipHandler';
+import { DateTime } from "luxon";
 
 
 const GAMES_PER_SEASON = 82;
 const IMAGE_POINT_SIZE_PX = 30;
+const ALL_STAR_BREAK_REASON = 'All-Star Break';
 
 // Standings graph user options
 
@@ -10,8 +12,6 @@ const standingsGraphTeamOptions = {
     all: 'all',
     east: 'east',
     west: 'west',
-    // hottest: 'Hottest 🔥',
-    // coldest: 'Coldest ❄️'
 }
 
 const standingsGraphXAxisGamesOptions = {
@@ -54,9 +54,33 @@ const standingsGraphSeasonOptions = {
     2005: '2004-05',
 }
 
+
+const dateStringToUSDateTime = (dateString) => DateTime.fromISO(dateString, {zone: 'America/New_York'});
+const dateMSToUSDateTime = (dateMS) => DateTime.fromMillis(dateMS, {zone: 'America/New_York'});
+
+
+const seasonBreaks = {
+    '2022-23': [{start: dateStringToUSDateTime('2023-02-17'), end: dateStringToUSDateTime('2023-02-22'), reason: ALL_STAR_BREAK_REASON},],
+    '2021-22': [{start: dateStringToUSDateTime('2022-02-18'), end: dateStringToUSDateTime('2022-02-23'), reason: ALL_STAR_BREAK_REASON},],
+    '2020-21': [{start: dateStringToUSDateTime('2021-03-04'), end: dateStringToUSDateTime('2021-03-09'), reason: ALL_STAR_BREAK_REASON},],
+    '2019-20': [{start: dateStringToUSDateTime('2020-02-14'), end: dateStringToUSDateTime('2020-02-19'), reason: ALL_STAR_BREAK_REASON},
+                {start: dateStringToUSDateTime('2020-03-11'), end: dateStringToUSDateTime('2020-07-29'), reason: 'COVID-19 Suspension'},],
+    '2018-19': [{start: dateStringToUSDateTime('2019-02-15'), end: dateStringToUSDateTime('2019-02-20'), reason: ALL_STAR_BREAK_REASON},],
+}
+
 const xAxisOriginLabel = '';
 
-// const skipped = (ctx, value) => ctx.p0.skip || ctx.p1.skip ? value : undefined;
+function skipped(ctx, value, onlyIfNotActive=false) {
+    if (onlyIfNotActive) {
+        let activeElements = ctx.chart.getActiveElements();
+        for (const dataset of activeElements) {
+            if (dataset.datasetIndex == ctx.datasetIndex) {
+                return undefined;
+            }
+        }
+    }
+    return ctx.p0.skip || ctx.p1.skip ? value : undefined;
+}
 
 // The basic graph options
 const standingsGraphOptionsBase = {
@@ -65,16 +89,21 @@ const standingsGraphOptionsBase = {
         mode: 'nearest',
     },
     spanGaps: true,
-    // segment: {
-    //     borderColor: ctx => skipped(ctx, 'rgb(0,0,0,0.2)'),
-    //     borderDash: ctx => skipped(ctx, [6, 6]),
-    //   },
+    segment: {
+        // borderColor: ctx => skipped(ctx, 'rgb(0,0,0,0.2)'),
+        borderColor: ctx => skipped(ctx, '#ababab', true),
+        borderDash: ctx => skipped(ctx, [6, 8]),
+        // borderWidth: ctx => skipped(ctx, 2),
+    },
     layout: {
         padding: IMAGE_POINT_SIZE_PX
     },
     scales: {
         x: {
-            type: 'category',
+            type: 'time',
+            time: {
+                unit: 'day'
+            },
             title: {
                 text: '',
                 display: true
@@ -105,9 +134,9 @@ const standingsGraphOptionsBase = {
             display: false
         },
         tooltip: {
-            enabled: false,
+            enabled: true,
             position: 'nearest',
-            external: externalTooltipHandler,
+            // external: externalTooltipHandler,
         },
         autocolors: false,
         annotation: {
@@ -245,6 +274,43 @@ function _getDataForGamesByWeekNum(games, seasonStartDate, xAxisWeekNumbers, yAx
     return [data, gamesByWeekNum];
 }
 
+
+function _insertSeasonBreakData(data, seasonOption) {
+    const breaks = seasonBreaks[seasonOption];
+    if (breaks === undefined) {
+        return;
+    }
+
+    let maxGameDateMs = 0;
+    for (const d of data) {
+        if (d.x > maxGameDateMs) {
+            maxGameDateMs = d.x;
+        }  
+    }
+
+    for (const brk of breaks) {
+        let startMS = brk.start.toMillis();
+        let endMS = brk.end.toMillis();
+        if (maxGameDateMs <= startMS) {
+            continue;
+        }
+        data.push({x: startMS, y: null});
+        data.push({x: endMS, y: null});
+    }
+
+    data.sort((a, b) => a.x - b.x);
+}
+
+
+function _getDataForGamesByTime(games, earliestGameDateTime) {
+    var data = [{x: earliestGameDateTime.minus({days: 1}).toMillis(), y: 0}];
+    for (const game of games) {
+        data.push({x: game.date_ms, y: game.cumulative_wins - game.cumulative_losses});
+    }
+    return data;
+}
+
+
 function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
 
     var yAxisDataByGameNum = new Map();
@@ -285,9 +351,13 @@ function _getLogoImageForTeamName(teamName) {
 
 function _setDatasetPointStyling(dataset) {
     var lastNotNullIdx = 0;
+    const nullIndxs = [];
     for (let i = 0; i < dataset.data.length; i++) {
-        if (dataset.data[i] != null) {
+        let dataPoint = dataset.data[i];
+        if (dataPoint.y != null && dataPoint.interactive != false) {
             lastNotNullIdx = i;
+        } else {
+            nullIndxs.push(i);
         }
     }
     var pointStyles = new Array(dataset.data.length).fill('point');
@@ -295,17 +365,23 @@ function _setDatasetPointStyling(dataset) {
     dataset.pointStyle = pointStyles;
 
     var pointRadii = new Array(dataset.data.length).fill(2.5);
+    for (const i of nullIndxs) {
+        pointRadii[i] = 0;
+    }
     pointRadii[0] = 0;
     dataset.pointRadius = pointRadii;
 
     var hoverRadii = new Array(dataset.data.length).fill(5);
+    for (const i of nullIndxs) {
+        hoverRadii[i] = 0;
+    }
     hoverRadii[0] = 0;
     hoverRadii[lastNotNullIdx] = IMAGE_POINT_SIZE_PX;
     dataset.pointHoverRadius = hoverRadii;
 }
 
 
-function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, gamesByTimestep) {
+function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption) {
     var dataset = {
         ...teamGraphDatasetBase,
         label: team.name,
@@ -317,7 +393,7 @@ function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, ga
         // Custom attributes
         yAxisOption: yAxisOption,
         xAxisTimeStepOption: xAxisTimeStepOption,
-        gamesByTimestep: gamesByTimestep,
+        // gamesByTimestep: gamesByTimestep,
         team: team,
         logoURL: _getLogoURLForTeamName(team.name),
     }
@@ -325,6 +401,22 @@ function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, ga
     _setDatasetPointStyling(dataset);
     return dataset;
 }
+
+
+function _getDataForTeams(teamData, earliestGameDateTime, latestGameDateTime, maxNumGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption, seasonOption) {
+
+    var datasets = [];
+    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
+        var team = teamData[teamIdx];
+        var data = _getDataForGamesByTime(team.games, earliestGameDateTime);
+        _insertSeasonBreakData(data, seasonOption);
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption);
+        datasets.push(teamDataset);
+    }
+
+    return {datasets: datasets};
+}
+
 
 function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption) {
 
@@ -458,7 +550,9 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
                                            teamSubsetOption,     // One of standingsGraphTeamOptions
                                            xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
                                            xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
-                                           yAxisTypeOption) {    // One of standingsGraphYAxisOptions
+                                           yAxisTypeOption,      // One of standingsGraphYAxisOptions
+                                           seasonOption)         // One of standingsGraphSeasonOptions
+                                           {    
 
     if (teamData.length == undefined) {
         return {labels: [], datasets: []};
@@ -466,23 +560,26 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
 
     // Compute the highest number of games, earliest game date and latest game date played by any team
     var maxGamesPlayed = 0;
-    var earliestGameDate = new Date();   // Current date
-    var latestGameDate = new Date(0);   // Epoch 0-date (1970)
+    var earliestGameDateMS = Infinity;
+    var latestGameDateMS = 0;
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         let team = teamData[teamIdx];
         let teamGamesPlayed = team.games.length;
         if (teamGamesPlayed > maxGamesPlayed) {
             maxGamesPlayed = teamGamesPlayed;
         }
-        let teamFirstGameDate = new Date(team.games[0].date);
-        if (teamFirstGameDate < earliestGameDate) {
-            earliestGameDate = teamFirstGameDate;
+        let teamFirstGameDateMS = team.games[0].date_ms;
+        if (teamFirstGameDateMS < earliestGameDateMS) {
+            earliestGameDateMS = teamFirstGameDateMS;
         }
-        let teamLastGameDate = new Date(team.games[team.games.length - 1].date);
-        if (teamLastGameDate > latestGameDate) {
-            latestGameDate = teamLastGameDate;
+        let teamLastGameDateMS = team.games[team.games.length - 1].date_ms;
+        if (teamLastGameDateMS > latestGameDateMS) {
+            latestGameDateMS = teamLastGameDateMS;
         }
     }
+    var earliestGameDateTime = dateMSToUSDateTime(earliestGameDateMS);
+    var latestGameDateTime = dateMSToUSDateTime(latestGameDateMS);
+
 
     if (teamSubsetOption !== standingsGraphTeamOptions.all) {
         // Filter out teams that don't pertain to the selected team subset option
@@ -496,26 +593,27 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
     }
 
     
-    if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
-        if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-            var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
-        } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-            data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
-        } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
-            data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
-        } 
-    } else {
-        data = _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption);
-    }
+    // if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
+    //     if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
+    //         var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
+    //     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+    //         data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
+    //     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
+    //         data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
+    //     } 
+    // } else {
+    //     data = _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption);
+    // }
 
-    return data;
+    return _getDataForTeams(teamData, earliestGameDateTime, latestGameDateTime, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption, seasonOption);
 }
 
 
 function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraphTeamOptions
                                   xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
                                   xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
-                                  yAxisTypeOption) {    // One of standingsGraphYAxisOptions
+                                  yAxisTypeOption,      // One of standingsGraphYAxisOptions
+                                  seasonOption) {    
     var options = standingsGraphOptionsBase;
     if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
         options.scales.x.title.text = 'Game number';
@@ -531,6 +629,53 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
         options.scales.y.max = undefined;
         options.scales.y.ticks.count = undefined;
         options.scales.y.ticks.autoSkip = true;
+        
+        const breaks = seasonBreaks[seasonOption];
+        if (breaks === undefined) {
+            options.plugins.annotation.annotations = {};
+            return;
+        }
+        for (const brk of breaks) {
+            options.plugins.annotation.annotations[`${brk.reason}Annotation`] = {
+                type: 'box',
+                display: true,
+                xMin: brk.start.toMillis(),
+                xMax: brk.end.toMillis(),
+                backgroundColor: 'rgb(0,0,0,0.07)',
+                borderColor: 'rgb(0,0,0,0.5)',
+                borderWidth: 0,
+                drawTime: 'beforeDatasetsDraw',
+                label: {
+                    textStrokeWidth: 3,
+                    textAlign: 'center',
+                    content: brk.reason,
+                    display: true,
+                    backgroundColor: '#292929',
+                    color: '#e0e0e0',
+                    rotation: brk.reason == ALL_STAR_BREAK_REASON ? 90 : 0,
+                    drawTime: 'afterDatasetsDraw',
+                }
+            }
+        }
+        // options.plugins.annotation.annotations.allStarBreakEnd = {
+        //     type: 'line',
+        //     display: true,
+        //     xMin: allStarBreakStartDate.minus({days: 1}).toMillis(),
+        //     xMax: allStarBreakStartDate.minus({days: 1}).toMillis(),
+        //     borderColor: 'rgb(0,0,0,0.5)',
+        //     borderWidth: 2,
+        //     borderDash: [10, 10],
+        //     drawTime: 'afterDatasetsDraw',
+        //     label: {
+        //         content: 'All Star break',
+        //         display: true,
+        //         backgroundColor: 'rgba(0,0,0,0)',
+        //         color: '#292929',
+        //         rotation: 90,
+        //         drawTime: 'afterDatasetsDraw',
+        //     }
+        // }
+
     } else {
         options.scales.x.title.text = 'Date';
         options.scales.y.reverse = true;

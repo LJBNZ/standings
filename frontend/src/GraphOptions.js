@@ -16,7 +16,7 @@ function GraphOptions(props) {
     const seasonChoice = <GraphOption name={seasonOptions.name} options={seasonOptions.options} selected={seasonOptions.selected} setter={seasonOptions.setter}/>;
 
     return (
-        <div className="graphOptions">
+        <div className="graphOptions" style={{width: '50%', margin: '0 auto'}}>
             <h1>Show me {teamSubsetChoice} teams' {timeScaleChoice} {yAxisChoice} (for the last {numGamesChoice} games) in the {seasonChoice} season.</h1>
         </div>
     )

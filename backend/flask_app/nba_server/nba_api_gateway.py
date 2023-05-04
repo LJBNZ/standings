@@ -13,6 +13,7 @@ from nba_api.stats.static import teams
 
 from . import team_data
 from . import team_rankings
+from . import util
 from .team_data import Team, Game
 
 
@@ -20,6 +21,8 @@ from .team_data import Team, Game
 NBA_LEAGUE_ID = '00'
 SEASON_TYPE = 'Regular Season'
 BACKOFF_TIME_SEC = 0.6
+
+EPOCH_DATETIME = datetime.datetime.utcfromtimestamp(0)
 
 
 def _get_cached_season_standings_data_file_path(season_year: str):
@@ -58,6 +61,8 @@ def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_
         team_score = team_scores_by_game_id[game_id][team_id]
         opponent_score = next(score for t_id, score in team_scores_by_game_id[game_id].items() if t_id != team_id)
         game_date = raw_game_data[date_column_idx]
+        game_datetime = util.api_date_string_to_datetime(game_date)
+        game_date_ms = int((game_datetime - EPOCH_DATETIME).total_seconds() * 1000)
         team_abbrv = raw_game_data[team_abbrv_column_idx]
         matchup = raw_game_data[matchup_column_idx].replace(team_abbrv, '').strip()  # Strip team name from matchup string
         outcome = raw_game_data[outcome_column_idx]
@@ -67,7 +72,7 @@ def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_
             n_wins += 1
         else:
             n_losses += 1
-        games.append(Game(game_id, game_num, game_date, matchup, team_score, opponent_score, outcome, n_wins, n_losses, opponent))
+        games.append(Game(game_id, game_num, game_date, game_date_ms, matchup, team_score, opponent_score, outcome, n_wins, n_losses, opponent))
 
     return games
 
@@ -95,16 +100,27 @@ def _get_team_standings_info(league_standings_response, team_id: int) -> dict[st
                          'OppPointsPG': 'opponent_points_per_game',
                          'DiffPointsPG': 'point_differential',
                          'ClinchedPlayoffBirth': 'clinched_playoffs',
-                         'ClinchedPlayIn': 'clinched_playin',
                          'L10': 'last_10',
                          'CurrentStreak': 'streak',
                          'EliminatedConference': 'eliminated'}
+    optional_data_keys_to_names = {'ClinchedPlayIn': 'clinched_playin'}
+
+    def populate_data(data_dict, keys_to_names, optional=False):
+        for key in keys_to_names:
+            try:
+                value = desired_team_standings_data[headers_to_data_indices[key]]
+                if isinstance(value, str):
+                    value = value.strip().lower()
+                data_dict[keys_to_names[key]] = value
+            except KeyError:
+                if optional:
+                    data_dict[keys_to_names[key]] = None
+                else:
+                    raise
+
     data = {}
-    for key in data_keys_to_names:
-        value = desired_team_standings_data[headers_to_data_indices[key]]
-        if isinstance(value, str):
-            value = value.strip().lower()
-        data[data_keys_to_names[key]] = value
+    populate_data(data, data_keys_to_names)
+    populate_data(data, optional_data_keys_to_names, optional=True)
 
     return data
 
@@ -139,12 +155,12 @@ def _get_teams_data(season_year: str) -> List[Team]:
         team_id = raw_team_data['id']
         team_name = raw_team_data['full_name']
         team_slug = raw_team_data['abbreviation']
-        primary_colour, secondary_colour = team_data.get_colours_for_team(team_name)
+        primary_colour, secondary_colour, text_colour = team_data.get_colours_for_team(team_name)
         team_standings_info = _get_team_standings_info(league_standings, team_id)
         conference = team_standings_info['conference']
         division = team_standings_info['division']
 
-        all_teams.append(Team(team_id, team_name, team_slug, primary_colour, secondary_colour, conference, division, team_standings_info))
+        all_teams.append(Team(team_id, team_name, team_slug, primary_colour, secondary_colour, text_colour, conference, division, team_standings_info))
 
     return all_teams
 

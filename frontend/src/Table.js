@@ -2,19 +2,58 @@ import styled from "styled-components";
 import { useTable, useSortBy } from 'react-table'
 import React from 'react';
 
+
+const StyledTd = styled.td`
+    text-align: left;
+`
+
+
+const StyledTr = styled.tr`
+    text-align: left;
+    
+`
+
+const StyledTh = styled.th`
+    text-align: left;
+    ${'' /* width: 75px; */}
+    padding-right: 30px;
+`
+
 const StyledTable = styled.table`
+    border-collapse: collapse;
+    color: #292929;
+`
+
+const StyledTbody = styled.tbody`
+    ${StyledTr}:nth-child(odd) {
+        background: #D0D0D0;
+    }
+    ${'' /* ${({ active }) => active && `
+    background: blue;
+    `} */}
+    ${StyledTr}:nth-child(6) {
+        border-bottom: 1px solid black;
+    }
+    ${StyledTr}:nth-child(10) {
+        border-bottom: 1px solid red;
+    }
 
 `
 
 const TeamSlug = styled.div`
-    color: ${props => props.secondaryColour};
+    color: ${props => props.textColour};
     background: ${props => props.primaryColour};
+    display: inline;
+    text-align: center;
     font-weight: bold;
-    height: 25px;
-    line-height: 25px;
-    width: 50px;
+    height: 36px;
+    line-height: 36px;
     border-radius: 5px;
-    margin: 10px;
+    padding: 0px 10px 2px 4px;
+    img {
+        vertical-align: middle;
+        padding-right: 6px;
+    }
 `
 
 function getTableData(data, teamSubset) {
@@ -43,20 +82,22 @@ function getTableRow(dataset, teamSubset) {
     let streakEmoji = '';
 
     if (streak >= 3) {
-        streakEmoji = ' 🔥';
+        streakEmoji = '🔥';
     } else if (streak <= -3) {
-        streakEmoji = ' ❄️';
+        streakEmoji = '❄️';
     }
-    let streakString = `${prefix}${Math.abs(streak)}${streakEmoji}`;
+    let absStreak = Math.abs(streak);
+    let streakEmojis = streakEmoji.repeat(Math.min(3, Math.floor(absStreak/3)));
+    let streakString = `${prefix}${Math.abs(absStreak)} ${streakEmojis}`;
 
     let teamSlug = 
-        <TeamSlug primaryColour={dataset.team.primary_colour} secondaryColour={dataset.team.secondary_colour}>
+        <TeamSlug primaryColour={dataset.team.primary_colour} secondaryColour={dataset.team.secondary_colour} textColour={dataset.team.text_colour}>
+            <img src={dataset.logoURL} height="32px" width="32px"/>
             {dataset.team.slug}
         </TeamSlug>;
 
     return {
-        rank: dataset.team.league_rank,
-        seed: dataset.team.conference_seed,
+        rank: (teamSubset.selected == 'all' ? dataset.team.league_rank : dataset.team.conference_seed),
         team: teamSlug,
         wins: standingsInfo.wins,
         losses: standingsInfo.losses,
@@ -68,16 +109,15 @@ function getTableRow(dataset, teamSubset) {
         opponentPointsPerGame: standingsInfo.opponent_points_per_game,
         pointDifferential: standingsInfo.point_differential,
         last10: standingsInfo.last_10,
-        streak: streakString,
+        streak: streakString.trim(),
         clinched: clinchString,
     };
 }
 
 function StandingsTable({data, teamSubset}) {
-    const rankHeader = (teamSubset.selected == 'all' ? 'Rank' : 'Seed');
     const columns = React.useMemo(
         () => [
-                {Header: rankHeader, accessor: rankHeader.toLowerCase()},
+                {Header: '#', accessor: 'rank'},
                 {Header: 'Team', accessor: 'team'},
                 {Header: '', accessor: 'clinched'},
                 {Header: 'W', accessor: 'wins'},
@@ -97,41 +137,51 @@ function StandingsTable({data, teamSubset}) {
     
     const tableData = React.useMemo(() => getTableData(data, teamSubset), [data, teamSubset]);
 
+    const defaultSort = React.useMemo(
+        () => [
+          {
+            id: "rank",
+            desc: false
+          }
+        ],
+        []
+      );
+
     const {
         getTableProps,
         getTableBodyProps,
         headerGroups,
         rows,
         prepareRow,
-    } = useTable({ columns, data: tableData }, useSortBy)
+    } = useTable({ columns, data: tableData, initialState: {sortBy: defaultSort} }, useSortBy)
 
     return (
         <StyledTable {...getTableProps()}>
             <thead>
                 {headerGroups.map(headerGroup => (
-                    <tr {...headerGroup.getHeaderGroupProps()}>
+                    <StyledTr {...headerGroup.getHeaderGroupProps()}>
                         {headerGroup.headers.map(column => (
-                            <th {...column.getHeaderProps(column.getSortByToggleProps())}>{column.render('Header')}
+                            <StyledTh {...column.getHeaderProps(column.getSortByToggleProps())}>{column.render('Header')}
                                 <span>
-                                    {column.isSorted ? column.isSortedDesc ? ' ↓' : ' ↑' : ''}
+                                    {column.isSorted ? column.isSortedDesc ? '🔽' : '⬆️' : ''}
                                 </span>
-                            </th>
+                            </StyledTh>
                         ))}
-                    </tr>
+                    </StyledTr>
                 ))}
             </thead>
-            <tbody {...getTableBodyProps()}>
+            <StyledTbody {...getTableBodyProps()} orderedByRank={true}>
                 {rows.map((row, i) => {
                     prepareRow(row)
                     return (
-                        <tr {...row.getRowProps()}>
+                        <StyledTr {...row.getRowProps()}>
                             {row.cells.map(cell => {
-                                return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                                return <StyledTd {...cell.getCellProps()}>{cell.render('Cell')}</StyledTd>
                             })}
-                        </tr>
+                        </StyledTr>
                     )
                 })}
-            </tbody>
+            </StyledTbody>
         </StyledTable>
     )
 }
