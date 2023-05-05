@@ -1,5 +1,4 @@
 import { standingsGraphTeamOptions, 
-         standingsGraphXAxisGamesOptions, 
          standingsGraphXAxisTimeScaleOptions, 
          standingsGraphYAxisOptions,
          standingsGraphSeasonOptions,
@@ -22,8 +21,7 @@ Chart.register(annotationPlugin);
 
 
 const teamSubsetDefault = standingsGraphTeamOptions.all;
-const numGamesDefault = standingsGraphXAxisGamesOptions.all;
-const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameToGame;
+const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameNum;
 const yAxisDefault = standingsGraphYAxisOptions.record;
 const seasonDefault = standingsGraphSeasonOptions[2023];
 
@@ -51,7 +49,6 @@ defaults.backgroundColor = 'rgba(0, 0, 0, 1)';
 function App() {
 
   const [teamSubsetOption, setTeamSubsetOption] = useState(teamSubsetDefault);
-  const [numGamesOption, setNumGamesOption] = useState(numGamesDefault);
   const [timeScaleOption, setTimeScaleOption] = useState(timeScaleDefault);
   const [yAxisOption, setYAxisOption] = useState(yAxisDefault);
   const [seasonOption, setSeasonOption] = useState(seasonDefault);
@@ -74,21 +71,10 @@ function App() {
         )
   }, [seasonOption]);
 
-  let data = getStandingsGraphDataFromTeamData(teamData, 
-                                               teamSubsetOption, 
-                                               numGamesOption, 
-                                               timeScaleOption, 
-                                               yAxisOption,
-                                               seasonOption);
-
-  let options = getStandingsGraphOptions(teamSubsetOption,                                        
-                                         numGamesOption, 
-                                         timeScaleOption, 
-                                         yAxisOption,
-                                         seasonOption);
+  let data = useMemo(() => getStandingsGraphDataFromTeamData(teamData, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption), [teamData, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption]);
+  let options = useMemo(() => getStandingsGraphOptions(teamSubsetOption, timeScaleOption, yAxisOption, seasonOption), [teamSubsetOption, timeScaleOption, yAxisOption, seasonOption]);
 
   const teamSubsetOptions = {name: "teamSubsetOptions", options: standingsGraphTeamOptions, selected: teamSubsetOption, setter: setTeamSubsetOption};
-  const numGamesOptions = {name: "numGamesOptions", options: standingsGraphXAxisGamesOptions, selected: numGamesOption, setter: setNumGamesOption};
   const timeScaleOptions = {name: "timeScaleOptions", options: standingsGraphXAxisTimeScaleOptions, selected: timeScaleOption, setter: setTimeScaleOption};
   const yAxisOptions = {name: "yAxisOptions", options: standingsGraphYAxisOptions, selected: yAxisOption, setter: setYAxisOption};
   const seasonOptions = {name: "seasonOptions", options: standingsGraphSeasonOptions, selected: seasonOption, setter: setSeasonOption};
@@ -108,7 +94,6 @@ function App() {
           <StandingsTable data={data} teamSubset={teamSubsetOptions}/>
         </div>
         <GraphOptions teamSubsetOptions={teamSubsetOptions} 
-                      numGamesOptions={numGamesOptions} 
                       timeScaleOptions={timeScaleOptions} 
                       yAxisOptions={yAxisOptions}
                       seasonOptions={seasonOptions}/>

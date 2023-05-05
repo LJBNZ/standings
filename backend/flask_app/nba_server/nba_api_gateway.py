@@ -22,8 +22,6 @@ NBA_LEAGUE_ID = '00'
 SEASON_TYPE = 'Regular Season'
 BACKOFF_TIME_SEC = 0.6
 
-EPOCH_DATETIME = datetime.datetime.utcfromtimestamp(0)
-
 
 def _get_cached_season_standings_data_file_path(season_year: str):
     """Returns the path to the cached data for the given year."""
@@ -62,7 +60,7 @@ def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_
         opponent_score = next(score for t_id, score in team_scores_by_game_id[game_id].items() if t_id != team_id)
         game_date = raw_game_data[date_column_idx]
         game_datetime = util.api_date_string_to_datetime(game_date)
-        game_date_ms = int((game_datetime - EPOCH_DATETIME).total_seconds() * 1000)
+        game_date_ms = util.get_datetime_as_milliseconds(game_datetime)
         team_abbrv = raw_game_data[team_abbrv_column_idx]
         matchup = raw_game_data[matchup_column_idx].replace(team_abbrv, '').strip()  # Strip team name from matchup string
         outcome = raw_game_data[outcome_column_idx]

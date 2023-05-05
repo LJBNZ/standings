@@ -84,11 +84,11 @@ class TeamWithRecord:
             self._division_record.increment_by(game_value)
         self._point_differential += (game.team_score - game.opponent_score)
     
-    def set_ranks_for_date(self, ranked_teams: List['TeamWithRecord'], date_string: str):
+    def set_ranks_for_date(self, ranked_teams: List['TeamWithRecord'], date_ms: int):
         league_rank = ranked_teams.index(self) + 1
         conference_seed = [t for t in ranked_teams if t.conference == self._team.conference].index(self) + 1
-        self._team.conference_seed_by_date[date_string] = conference_seed
-        self._team.league_rank_by_date[date_string] = league_rank
+        self._team.conference_seed_by_date[date_ms] = conference_seed
+        self._team.league_rank_by_date[date_ms] = league_rank
         self._team.conference_seed = conference_seed
         self._team.league_rank = league_rank
 
@@ -419,11 +419,11 @@ def calculate_team_ranks_over_time(teams: List[Team], play_in_format=True) -> No
         ranked_teams = rank_teams(teams, playoff_format=PlayoffFormat.MODERN if play_in_format else PlayoffFormat.LEGACY)
 
         # Get the API-compliant string format of the current date
-        current_date_string = util.datetime_to_api_date_string(current_datetime)
+        current_date_in_ms = util.get_datetime_as_milliseconds(current_datetime)
 
         # Determine each team's conference seed and league-wide rank on the current date
         for team in teams:
-            team.set_ranks_for_date(ranked_teams, current_date_string)
+            team.set_ranks_for_date(ranked_teams, current_date_in_ms)
 
         # Advance date by one day for next iteration
         current_datetime += datetime.timedelta(days=1)

@@ -163,7 +163,7 @@ function StandingsTable({data, teamSubset}) {
                         {headerGroup.headers.map(column => (
                             <StyledTh {...column.getHeaderProps(column.getSortByToggleProps())}>{column.render('Header')}
                                 <span>
-                                    {column.isSorted ? column.isSortedDesc ? '🔽' : '⬆️' : ''}
+                                    {column.isSorted ? column.isSortedDesc ? '🔽' : '🔼' : ''}
                                 </span>
                             </StyledTh>
                         ))}

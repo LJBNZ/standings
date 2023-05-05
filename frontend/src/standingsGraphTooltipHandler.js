@@ -1,4 +1,4 @@
-import { standingsGraphXAxisTimeScaleOptions, months } from './standingsGraphData'; 
+import { standingsGraphXAxisTimeScaleOptions } from './standingsGraphData'; 
 
 
 const getOrCreateTooltip = (chart) => {
@@ -32,9 +32,9 @@ function _getTooltipTitle(tooltip, xAxisTimeStepOption) {
     // Get the title for the tooltip based on the x-axis option
     let dataPoint = tooltip.dataPoints[0];
     let pointXLabel = dataPoint.label;
-    if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.gameToGame) {
+    if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.gameNum) {
         return `Game ${pointXLabel}`;
-    } else if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+    } else if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.week) {
         return `Week ${pointXLabel}`;
     } else {
         return pointXLabel;
@@ -44,14 +44,14 @@ function _getTooltipTitle(tooltip, xAxisTimeStepOption) {
 function _getTooltipTeamText(dataPoint, xAxisTimeStepOption) {
     // Get the text for the data point as it relates to team record and x axis option
     var leftText, rightText;
-    if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.gameToGame) {
+    if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.gameNum) {
         let game = dataPoint.dataset.team.games[dataPoint.dataIndex - 1];   // TODO offset index in case game numbers filtered
         leftText = `${dataPoint.dataset.team.slug} (${game.cumulative_wins}W-${game.cumulative_losses}L)`;
         rightText = `${game.outcome} ${game.matchup} ${game.team_score}-${game.opponent_score}`;
     } else  {
         let timeStepIndex = dataPoint.dataIndex;
-        if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.monthToMonth) {
-            timeStepIndex = months.indexOf(dataPoint.label);
+        if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.month) {
+            // timeStepIndex = months.indexOf(dataPoint.label);
         }
         let gamesInTimeStep = dataPoint.dataset.gamesByTimestep.get(timeStepIndex);
         let wins = 0, losses = 0;
@@ -64,7 +64,7 @@ function _getTooltipTeamText(dataPoint, xAxisTimeStepOption) {
         }
         let lastGame = gamesInTimeStep[gamesInTimeStep.length - 1];
         leftText = `${dataPoint.dataset.team.slug} (${lastGame.cumulative_wins}W-${lastGame.cumulative_losses}L)`;
-        if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.weekToWeek) {
+        if (xAxisTimeStepOption == standingsGraphXAxisTimeScaleOptions.week) {
             rightText = `${wins}-${losses} in week`;
         } else {
             rightText = `${wins}-${losses} in month`;

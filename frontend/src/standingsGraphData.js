@@ -22,9 +22,10 @@ const standingsGraphXAxisGamesOptions = {
 }
 
 const standingsGraphXAxisTimeScaleOptions = {
-    gameToGame: 'game-to-game',
-    weekToWeek: 'week-to-week',
-    monthToMonth: 'month-to-month'
+    gameNum: 'game number',
+    day: 'day',
+    week: 'week',
+    month: 'month',
 }
 
 const standingsGraphYAxisOptions = {
@@ -55,17 +56,17 @@ const standingsGraphSeasonOptions = {
 }
 
 
-const dateStringToUSDateTime = (dateString) => DateTime.fromISO(dateString, {zone: 'America/New_York'});
-const dateMSToUSDateTime = (dateMS) => DateTime.fromMillis(dateMS, {zone: 'America/New_York'});
+const dateStringToDateTime = (dateString) => DateTime.fromISO(dateString);
+const millisecondsToDateTime = (dateMS) => DateTime.fromMillis(dateMS);
 
 
 const seasonBreaks = {
-    '2022-23': [{start: dateStringToUSDateTime('2023-02-17'), end: dateStringToUSDateTime('2023-02-22'), reason: ALL_STAR_BREAK_REASON},],
-    '2021-22': [{start: dateStringToUSDateTime('2022-02-18'), end: dateStringToUSDateTime('2022-02-23'), reason: ALL_STAR_BREAK_REASON},],
-    '2020-21': [{start: dateStringToUSDateTime('2021-03-04'), end: dateStringToUSDateTime('2021-03-09'), reason: ALL_STAR_BREAK_REASON},],
-    '2019-20': [{start: dateStringToUSDateTime('2020-02-14'), end: dateStringToUSDateTime('2020-02-19'), reason: ALL_STAR_BREAK_REASON},
-                {start: dateStringToUSDateTime('2020-03-11'), end: dateStringToUSDateTime('2020-07-29'), reason: 'COVID-19 Suspension'},],
-    '2018-19': [{start: dateStringToUSDateTime('2019-02-15'), end: dateStringToUSDateTime('2019-02-20'), reason: ALL_STAR_BREAK_REASON},],
+    '2022-23': [{start: dateStringToDateTime('2023-02-17'), end: dateStringToDateTime('2023-02-22'), reason: ALL_STAR_BREAK_REASON},],
+    '2021-22': [{start: dateStringToDateTime('2022-02-18'), end: dateStringToDateTime('2022-02-23'), reason: ALL_STAR_BREAK_REASON},],
+    '2020-21': [{start: dateStringToDateTime('2021-03-04'), end: dateStringToDateTime('2021-03-09'), reason: ALL_STAR_BREAK_REASON},],
+    '2019-20': [{start: dateStringToDateTime('2020-02-14'), end: dateStringToDateTime('2020-02-19'), reason: ALL_STAR_BREAK_REASON},
+                {start: dateStringToDateTime('2020-03-11'), end: dateStringToDateTime('2020-07-29'), reason: 'COVID-19 Suspension'},],
+    '2018-19': [{start: dateStringToDateTime('2019-02-15'), end: dateStringToDateTime('2019-02-20'), reason: ALL_STAR_BREAK_REASON},],
 }
 
 const xAxisOriginLabel = '';
@@ -99,16 +100,7 @@ const standingsGraphOptionsBase = {
         padding: IMAGE_POINT_SIZE_PX
     },
     scales: {
-        x: {
-            type: 'time',
-            time: {
-                unit: 'day'
-            },
-            title: {
-                text: '',
-                display: true
-            }
-        },
+        x: undefined,
         y: {
             type: 'linear',
             title: {
@@ -180,98 +172,10 @@ const standingsGraphOptionsBase = {
 const teamGraphDatasetBase = {
     label: "",
     data: [],
-    tension: 0.3,
+    tension: 0.1,
     clip: {left: false, top: false, right: IMAGE_POINT_SIZE_PX, bottom: false},
     hidden: false,
     pointHitRadius: 10,
-}
-
-
-const months = ["January", "February", "March", "April", "May", "June", 
-                "July", "August", "September", "October", "November", "December"];
-
-const weekInMilliseconds = 604800000;   // 7 days in milliseconds
-
-function _getSeasonWeekNumForDate(seasonStartDate, date) {
-    return Math.ceil((date - seasonStartDate) / weekInMilliseconds);
-}
-
-function _getDataForGamesByMonthNum(games, xAxisMonthNumbers, yAxisType) {
-
-    var gamesByMonthNum = new Map();
-    xAxisMonthNumbers.forEach(monthNum => {
-        // Initialise empty arrays corresponding to the month numbers
-        gamesByMonthNum.set(monthNum, new Array());
-    });
-
-    // Bin the games into the months they were played in
-    for (let i = 0; i < games.length; i++) {
-        let game = games[i];
-        let gameMonthNum = new Date(game.date).getMonth();
-        if (gamesByMonthNum.has(gameMonthNum)) {
-            // Add the game to the array of games for that month
-            gamesByMonthNum.get(gameMonthNum).push(game);
-        }
-    }
-
-    // Get data points for each month number
-    var data = [];
-    for (let games of gamesByMonthNum.values()) {
-        if (games.length == 0) {
-            // No games played in this month
-            data.push(null);
-        } else {
-            // Get the data point for the last game in the month
-            var lastGameInMonth = games[games.length - 1];
-            if (yAxisType === standingsGraphYAxisOptions.record) {
-                data.push(lastGameInMonth.cumulative_wins - lastGameInMonth.cumulative_losses);
-            } else {
-                // TODO implement y-axis seed data
-            }
-        }
-    }
-
-    data.splice(0, 0, 0);   // Add origin point
-    return [data, gamesByMonthNum];
-}
-
-function _getDataForGamesByWeekNum(games, seasonStartDate, xAxisWeekNumbers, yAxisType) {
-
-    var gamesByWeekNum = new Map();
-    xAxisWeekNumbers.forEach(weekNum => {
-        // Initialise empty arrays corresponding to the week numbers
-        gamesByWeekNum.set(weekNum, new Array());
-    });
-
-    // Bin the games into the week number they were played in
-    for (let i = 0; i < games.length; i++) {
-        let game = games[i];
-        let gameWeekNum = Math.max(1, _getSeasonWeekNumForDate(seasonStartDate, new Date(game.date)));
-        if (gamesByWeekNum.has(gameWeekNum)) {
-            // Add the game to the array of games for that week
-            gamesByWeekNum.get(gameWeekNum).push(game);
-        }
-    }
-
-    // Get data points for each week number
-    var data = [];
-    for (let games of gamesByWeekNum.values()) {
-        if (games.length == 0) {
-            // No games played in this week
-            data.push(null);
-        } else {
-            // Get the data point for the last game in the week
-            var lastGameInWeek = games[games.length - 1];
-            if (yAxisType === standingsGraphYAxisOptions.record) {
-                data.push(lastGameInWeek.cumulative_wins - lastGameInWeek.cumulative_losses);
-            } else {
-                // TODO implement y-axis seed data
-            }
-        }
-    }
-
-    data.splice(0, 0, 0);   // Add origin point
-    return [data, gamesByWeekNum];
 }
 
 
@@ -302,45 +206,163 @@ function _insertSeasonBreakData(data, seasonOption) {
 }
 
 
-function _getDataForGamesByTime(games, earliestGameDateTime) {
-    var data = [{x: earliestGameDateTime.minus({days: 1}).toMillis(), y: 0}];
-    for (const game of games) {
-        data.push({x: game.date_ms, y: game.cumulative_wins - game.cumulative_losses});
+function _getRecordDataForTeamByGameNum(team) {
+    const zeroDataPoint = {x: 0, y: 0};
+    var data = [zeroDataPoint];
+    for (const game of team.games) {
+        let x = game.game_num;
+        let y = game.cumulative_wins - game.cumulative_losses;
+        data.push({x: x, y: y, games: [game]});
+    }
+    return data;
+}
+
+function _getRecordDataForTeamByDay(team, earliestGameDateTime) {
+    const zeroDataPoint = {x: earliestGameDateTime.minus({days: 1}).toMillis(), y: 0};
+    var data = [zeroDataPoint];
+    for (const game of team.games) {
+        let x = game.date_ms;
+        let y = game.cumulative_wins - game.cumulative_losses;
+        data.push({x: x, y: y, games: [game]});
     }
     return data;
 }
 
 
-function _getDataForGamesByGameNum(games, xAxisGameNumbers, yAxisType) {
+function _getSeedDataForTeamByDay(team, teamSubsetOption) {
+    var data = [];
+    const rankOverTime = teamSubsetOption === standingsGraphTeamOptions.all ? team.league_rank_by_date : team.conference_seed_by_date;
+    for (const [dateMS, rank] of Object.entries(rankOverTime)) {
+        let x = Number(dateMS);
+        let y = rank;
+        data.push({x: x, y: y});
+    }
+    var uniqueDataPoints = [];
+    for (var i = 0; i < data.length; i++) {
+        if (i === 0 || i === data.length - 1) {
+            uniqueDataPoints.push(data[i]);
+            continue;
+        }
+        const [last, current, next] = data.slice(i - 1, i + 2);
+        if (last.y !== current.y || current.y !== next.y) {
+            uniqueDataPoints.push(current);
+        }
+    }
+    return uniqueDataPoints;
+}
 
-    var yAxisDataByGameNum = new Map();
-    xAxisGameNumbers.forEach(gameNum => {
-        yAxisDataByGameNum.set(gameNum, null);
-    });
 
-    var gameByGameNum = new Map();
+function _getRecordDataForTeamByTimeStep(team, earliestGameDateTime, timeStepOption) {
+    const zeroDataPoint = {x: earliestGameDateTime.toMillis(), y: 0};
+    const timeStepString = timeStepOption === standingsGraphXAxisTimeScaleOptions.week ? 'week' : 'month';
+    var data = [zeroDataPoint];
 
-    for (var i = 0; i < games.length; i++) {
-        let game = games[i];
-        gameByGameNum.set(game.game_num, game);
-        if (yAxisDataByGameNum.has(game.game_num)) {
-            if (yAxisType === standingsGraphYAxisOptions.record) {
-                yAxisDataByGameNum.set(game.game_num, (game.cumulative_wins - game.cumulative_losses));
-            } else {
-                // TODO implement y-axis seed data
-            }
+    var maxGameDateMS = earliestGameDateTime.toMillis();
+    for (const game of team.games) {
+        if (game.date_ms > maxGameDateMS) {
+            maxGameDateMS = game.date_ms;
+        }
+    }
+    
+    // Bin games by time step
+    var gamesByTimeStep = new Map();
+    for (const game of team.games) {
+        let gameDateTime = millisecondsToDateTime(game.date_ms);
+        let offset = {};
+        offset[timeStepString] = 1;
+        let timeStepEndDateTime = gameDateTime.plus(offset).startOf(timeStepString);
+        var timeStepMS = timeStepEndDateTime.toMillis();
+        timeStepMS = Math.min(timeStepMS, maxGameDateMS);
+        
+        if (gamesByTimeStep.has(timeStepMS)) {
+            gamesByTimeStep.get(timeStepMS).push(game);
+        } else {
+            gamesByTimeStep.set(timeStepMS, [game]);
         }
     }
 
-    var data = Array.from(yAxisDataByGameNum.values());
-    data.splice(0, 0, 0);   // Add origin point
-    return [data, gameByGameNum];
+    // Convert bins of games to data points
+    for (const [timeStepMS, games] of gamesByTimeStep) {
+        if (games.length == 0) {
+            continue;
+        }
+        games.sort((a, b) => a.date_ms - b.date_ms);
+        var latestGameInTimeStep = games[games.length - 1];
+        let x = timeStepMS;
+        let y = latestGameInTimeStep.cumulative_wins - latestGameInTimeStep.cumulative_losses;
+        data.push({x: x, y: y, games: games});
+    }
+    return data;
 }
+
+
+function _getSeedDataForTeamByTimeStep(team, timeStepOption, teamSubsetOption) {
+    const timeStepString = timeStepOption === standingsGraphXAxisTimeScaleOptions.week ? 'week' : 'month';
+    const rankOverTime = teamSubsetOption === standingsGraphTeamOptions.all ? team.league_rank_by_date : team.conference_seed_by_date;
+    var data = [];
+
+    var maxSeedDateMS = 0;
+    for (const [dateMS, rank] of Object.entries(rankOverTime)) {
+        let intDateMS = Number(dateMS);
+        if (intDateMS > maxSeedDateMS) {
+            maxSeedDateMS = intDateMS;
+        }
+    }
+    
+    // Bin seed data by time intervals
+    var seedsByTimeStep = new Map();
+    for (const [dateMS, rank] of Object.entries(rankOverTime)) {
+        let dateTime = millisecondsToDateTime(Number(dateMS));
+        let offset = {};
+        offset[timeStepString] = 1;
+        let timeStepEndDateTime = dateTime.plus(offset).startOf(timeStepString);
+        var timeStepMS = timeStepEndDateTime.toMillis();
+        timeStepMS = Math.min(timeStepMS, maxSeedDateMS);
+        
+        if (seedsByTimeStep.has(timeStepMS)) {
+            seedsByTimeStep.get(timeStepMS).push(rank);
+        } else {
+            seedsByTimeStep.set(timeStepMS, [rank]);
+        }
+    }
+
+    // Convert bins of seed data to graph data points
+    for (const [timeStepMS, ranks] of seedsByTimeStep) {
+        if (ranks.length == 0) {
+            continue;
+        }
+        let x = timeStepMS;
+        let y = ranks[ranks.length - 1];
+        data.push({x: x, y: y});
+    }
+    return data;
+}
+
+
+function _getDataForTeam(team, earliestGameDateTime, xAxisTimeStepOption, yAxisOption, teamSubsetOption) {
+    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameNum) {
+        return _getRecordDataForTeamByGameNum(team);
+    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.day) {
+        if (yAxisOption === standingsGraphYAxisOptions.record) {
+            return _getRecordDataForTeamByDay(team, earliestGameDateTime);
+        } else {
+            return _getSeedDataForTeamByDay(team, teamSubsetOption);
+        }
+    } else {
+        if (yAxisOption === standingsGraphYAxisOptions.record) {
+            return _getRecordDataForTeamByTimeStep(team, earliestGameDateTime, xAxisTimeStepOption);
+        } else {
+            return _getSeedDataForTeamByTimeStep(team, xAxisTimeStepOption, teamSubsetOption);
+        }
+    }
+}
+
 
 function _getLogoURLForTeamName(teamName) {
     var imageName = teamName.toLowerCase().replace(/ /g, '_');
     return `./img/${imageName}.png`;
 }
+
 
 function _getLogoImageForTeamName(teamName) {
     var teamLogo = new Image(IMAGE_POINT_SIZE_PX, IMAGE_POINT_SIZE_PX);
@@ -403,93 +425,18 @@ function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption) {
 }
 
 
-function _getDataForTeams(teamData, earliestGameDateTime, latestGameDateTime, maxNumGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption, seasonOption) {
+function _getDataForTeams(teamData, earliestGameDateTime, xAxisTimeStepOption, yAxisTypeOption, teamSubsetOption, seasonOption) {
 
     var datasets = [];
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         var team = teamData[teamIdx];
-        var data = _getDataForGamesByTime(team.games, earliestGameDateTime);
-        _insertSeasonBreakData(data, seasonOption);
+        var data = _getDataForTeam(team, earliestGameDateTime, xAxisTimeStepOption, yAxisTypeOption, teamSubsetOption);
+        // _insertSeasonBreakData(data, seasonOption);
         var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption);
         datasets.push(teamDataset);
     }
 
     return {datasets: datasets};
-}
-
-
-function _getGameToGameDataForTeams(teamData, maxNumGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption) {
-
-    // Get the game numbers to plot on the x-axis
-    var xAxisGameNumbers = [];
-    var firstPlotGameNum = Math.max(1, (maxNumGamesPlayed - xAxisNumGamesOption));
-    for (let gameNum = firstPlotGameNum; gameNum <= maxNumGamesPlayed; gameNum++) {
-        xAxisGameNumbers.push(gameNum);
-    }
-
-    var datasets = [];
-    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
-        var team = teamData[teamIdx];
-        var [data, gameByGameNum] = _getDataForGamesByGameNum(team.games, xAxisGameNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gameByGameNum);
-        datasets.push(teamDataset);
-    }
-
-    xAxisGameNumbers.splice(0, 0, xAxisOriginLabel);   // Add origin label for x-axis
-    return {labels: xAxisGameNumbers, datasets: datasets};
-}
-
-
-function _getWeekToWeekDataForTeams(teamData, seasonStartDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption) {
-
-    // Get the week numbers to plot on the x-axis
-    var xAxisWeekNumbers = [];
-    var lastPlotWeekNum = _getSeasonWeekNumForDate(seasonStartDate, latestGameDate);
-    for (let weekNum = 1; weekNum <= lastPlotWeekNum; weekNum++) {
-        xAxisWeekNumbers.push(weekNum);
-    }
-
-    // Get the week-by-week dataset for each team
-    var datasets = [];
-    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
-        var team = teamData[teamIdx];
-        var [data, gamesByWeekNum] = _getDataForGamesByWeekNum(team.games, seasonStartDate, xAxisWeekNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gamesByWeekNum);
-        datasets.push(teamDataset);
-    }
-
-    xAxisWeekNumbers.splice(0, 0, xAxisOriginLabel);   // Add origin label for x-axis
-    return {labels: xAxisWeekNumbers, datasets: datasets};
-}
-
-
-function _getMonthToMonthDataForTeams(teamData, seasonStartDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption) {
-
-    // Get the month numbers to plot on the x-axis
-    var xAxisMonthNumbers = [];
-    var iterDate = new Date(seasonStartDate.getTime())
-    do {
-        var currentMonth = iterDate.getMonth();
-        xAxisMonthNumbers.push(currentMonth);
-        iterDate.setMonth(currentMonth + 1);
-    } while (currentMonth != latestGameDate.getMonth())
-
-    // Get the month-by-month dataset for each team
-    var datasets = [];
-    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
-        var team = teamData[teamIdx];
-        var [data, gamesByMonth] = _getDataForGamesByMonthNum(team.games, xAxisMonthNumbers, yAxisTypeOption);
-        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, gamesByMonth);
-        datasets.push(teamDataset);
-    }
-
-    // Format the month string labels for plotting on the x-axis
-    var labels = [xAxisOriginLabel];
-    xAxisMonthNumbers.forEach(monthNum => {
-        labels.push(months[monthNum]);
-    });
-
-    return {labels: labels, datasets: datasets};
 }
 
 
@@ -518,16 +465,16 @@ function _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, y
             var parsedDate = new Date();
             parsedDate.setTime(Date.parse(date));
 
-            if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-                var weeksSinceStart = Math.floor((parsedDate - firstDate) / weekInMilliseconds) + 1;
+            if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.week) {
+                // var weeksSinceStart = Math.floor((parsedDate - firstDate) / weekInMilliseconds) + 1;
                 var weekDate = new Date();
                 weekDate.setTime(firstDate.getTime());
-                weekDate.setDate(weekDate.getDate() + (weeksSinceStart * 7) - 1);
+                // weekDate.setDate(weekDate.getDate() + (weeksSinceStart * 7) - 1);
                 if (weekDate > lastDate) {
                     weekDate.setTime(lastDate.getTime());
                 }
                 ranksByTimeStep.set(weekDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
-            } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
+            } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.month) {
                 ranksByTimeStep.set(parsedDate.toLocaleString('default', {month: 'short'}), rank);
             } else {
                 ranksByTimeStep.set(parsedDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
@@ -548,20 +495,19 @@ function _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, y
 
 function getStandingsGraphDataFromTeamData(teamData,             // The team JSON data
                                            teamSubsetOption,     // One of standingsGraphTeamOptions
-                                           xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
                                            xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
                                            yAxisTypeOption,      // One of standingsGraphYAxisOptions
                                            seasonOption)         // One of standingsGraphSeasonOptions
                                            {    
 
+    console.log("getting data");
     if (teamData.length == undefined) {
         return {labels: [], datasets: []};
     }
 
-    // Compute the highest number of games, earliest game date and latest game date played by any team
+    // Compute the highest number of games and earliest game date played by any team
     var maxGamesPlayed = 0;
     var earliestGameDateMS = Infinity;
-    var latestGameDateMS = 0;
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         let team = teamData[teamIdx];
         let teamGamesPlayed = team.games.length;
@@ -572,14 +518,8 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
         if (teamFirstGameDateMS < earliestGameDateMS) {
             earliestGameDateMS = teamFirstGameDateMS;
         }
-        let teamLastGameDateMS = team.games[team.games.length - 1].date_ms;
-        if (teamLastGameDateMS > latestGameDateMS) {
-            latestGameDateMS = teamLastGameDateMS;
-        }
     }
-    var earliestGameDateTime = dateMSToUSDateTime(earliestGameDateMS);
-    var latestGameDateTime = dateMSToUSDateTime(latestGameDateMS);
-
+    var earliestGameDateTime = millisecondsToDateTime(earliestGameDateMS);
 
     if (teamSubsetOption !== standingsGraphTeamOptions.all) {
         // Filter out teams that don't pertain to the selected team subset option
@@ -592,36 +532,69 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
         teamData = teamDataSubset;
     }
 
-    
-    // if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
-    //     if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-    //         var data = _getGameToGameDataForTeams(teamData, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption);
-    //     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-    //         data = _getWeekToWeekDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
-    //     } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.monthToMonth) {
-    //         data = _getMonthToMonthDataForTeams(teamData, earliestGameDate, latestGameDate, xAxisTimeStepOption, yAxisTypeOption);
-    //     } 
-    // } else {
-    //     data = _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption);
-    // }
+    return _getDataForTeams(teamData, earliestGameDateTime, xAxisTimeStepOption, yAxisTypeOption, teamSubsetOption, seasonOption);
+}
 
-    return _getDataForTeams(teamData, earliestGameDateTime, latestGameDateTime, maxGamesPlayed, xAxisNumGamesOption, xAxisTimeStepOption, yAxisTypeOption, seasonOption);
+
+function defineSeasonBreakAnnotations(options, seasonOption) {
+    const breaks = seasonBreaks[seasonOption];
+        if (breaks === undefined) {
+            options.plugins.annotation.annotations = {};
+            return;
+        }
+
+    for (const brk of breaks) {
+        options.plugins.annotation.annotations[`${brk.reason}Annotation`] = {
+            type: 'box',
+            display: true,
+            xMin: brk.start.toMillis(),
+            xMax: brk.end.toMillis(),
+            backgroundColor: 'rgb(0,0,0,0.07)',
+            borderColor: 'rgb(0,0,0,0.5)',
+            borderWidth: 0,
+            drawTime: 'beforeDatasetsDraw',
+            label: {
+                textStrokeWidth: 3,
+                textAlign: 'center',
+                content: brk.reason,
+                display: true,
+                backgroundColor: '#292929',
+                color: '#e0e0e0',
+                rotation: brk.reason == ALL_STAR_BREAK_REASON ? 90 : 0,
+                drawTime: 'afterDatasetsDraw',
+            }
+        }
+    }
 }
 
 
 function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraphTeamOptions
-                                  xAxisNumGamesOption,  // One of standingsGraphXAxisGamesOptions
                                   xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
                                   yAxisTypeOption,      // One of standingsGraphYAxisOptions
                                   seasonOption) {    
+    console.log("getting options");
     var options = standingsGraphOptionsBase;
-    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameToGame) {
-        options.scales.x.title.text = 'Game number';
-    } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.weekToWeek) {
-        options.scales.x.title.text = 'Week number';
+    if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.gameNum) {
+        options.scales.x = {
+            type: 'linear',
+            title: {
+                text: 'Game number'
+            }
+        };
+        options.plugins.annotation.annotations = {};
     } else {
-        options.scales.x.title.text = 'Month';
+        options.scales.x = {
+            type: 'time',
+            title: {
+                text: 'Date'
+            },
+            time: {
+                unit: xAxisTimeStepOption
+            }
+        };
+        defineSeasonBreakAnnotations(options, seasonOption);
     }
+
     if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
         options.scales.y.reverse = false;
         options.scales.y.title.text = 'Games above .500';
@@ -629,53 +602,6 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
         options.scales.y.max = undefined;
         options.scales.y.ticks.count = undefined;
         options.scales.y.ticks.autoSkip = true;
-        
-        const breaks = seasonBreaks[seasonOption];
-        if (breaks === undefined) {
-            options.plugins.annotation.annotations = {};
-            return;
-        }
-        for (const brk of breaks) {
-            options.plugins.annotation.annotations[`${brk.reason}Annotation`] = {
-                type: 'box',
-                display: true,
-                xMin: brk.start.toMillis(),
-                xMax: brk.end.toMillis(),
-                backgroundColor: 'rgb(0,0,0,0.07)',
-                borderColor: 'rgb(0,0,0,0.5)',
-                borderWidth: 0,
-                drawTime: 'beforeDatasetsDraw',
-                label: {
-                    textStrokeWidth: 3,
-                    textAlign: 'center',
-                    content: brk.reason,
-                    display: true,
-                    backgroundColor: '#292929',
-                    color: '#e0e0e0',
-                    rotation: brk.reason == ALL_STAR_BREAK_REASON ? 90 : 0,
-                    drawTime: 'afterDatasetsDraw',
-                }
-            }
-        }
-        // options.plugins.annotation.annotations.allStarBreakEnd = {
-        //     type: 'line',
-        //     display: true,
-        //     xMin: allStarBreakStartDate.minus({days: 1}).toMillis(),
-        //     xMax: allStarBreakStartDate.minus({days: 1}).toMillis(),
-        //     borderColor: 'rgb(0,0,0,0.5)',
-        //     borderWidth: 2,
-        //     borderDash: [10, 10],
-        //     drawTime: 'afterDatasetsDraw',
-        //     label: {
-        //         content: 'All Star break',
-        //         display: true,
-        //         backgroundColor: 'rgba(0,0,0,0)',
-        //         color: '#292929',
-        //         rotation: 90,
-        //         drawTime: 'afterDatasetsDraw',
-        //     }
-        // }
-
     } else {
         options.scales.x.title.text = 'Date';
         options.scales.y.reverse = true;
@@ -733,7 +659,6 @@ export { standingsGraphTeamOptions,
     standingsGraphXAxisTimeScaleOptions, 
     standingsGraphYAxisOptions,
     standingsGraphSeasonOptions,
-    months,
     getStandingsGraphDataFromTeamData,
     getStandingsGraphOptions,
    };
