@@ -43,10 +43,11 @@ const StyledTbody = styled.tbody`
 const TeamSlug = styled.div`
     color: ${props => props.textColour};
     background: ${props => props.primaryColour};
-    display: inline;
+    display: flex;
+    align-items: center;
     text-align: center;
     font-weight: bold;
-    height: 36px;
+    height: 18px;
     line-height: 36px;
     border-radius: 5px;
     padding: 0px 10px 2px 4px;
@@ -87,7 +88,7 @@ function getTableRow(dataset, teamSubset) {
         streakEmoji = '❄️';
     }
     let absStreak = Math.abs(streak);
-    let streakEmojis = streakEmoji.repeat(Math.min(3, Math.floor(absStreak/3)));
+    let streakEmojis = streakEmoji.repeat(Math.min(3, Math.floor(absStreak/3)));  // Cap at 3, shoutout 2023 Pistons
     let streakString = `${prefix}${Math.abs(absStreak)} ${streakEmojis}`;
 
     let teamSlug = 
@@ -187,4 +188,4 @@ function StandingsTable({data, teamSubset}) {
 }
 
 
-export default StandingsTable;
+export { StandingsTable, TeamSlug };

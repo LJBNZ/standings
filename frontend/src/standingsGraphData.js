@@ -34,6 +34,7 @@ const standingsGraphYAxisOptions = {
 }
 
 const standingsGraphSeasonOptions = {
+    2024: '2023-24',
     2023: '2022-23',
     2022: '2021-22',
     2021: '2020-21',
@@ -67,6 +68,7 @@ const seasonBreaks = {
     '2019-20': [{start: dateStringToDateTime('2020-02-14'), end: dateStringToDateTime('2020-02-19'), reason: ALL_STAR_BREAK_REASON},
                 {start: dateStringToDateTime('2020-03-11'), end: dateStringToDateTime('2020-07-29'), reason: 'COVID-19 Suspension'},],
     '2018-19': [{start: dateStringToDateTime('2019-02-15'), end: dateStringToDateTime('2019-02-20'), reason: ALL_STAR_BREAK_REASON},],
+    // TODO add more breaks
 }
 
 const xAxisOriginLabel = '';
@@ -126,16 +128,16 @@ const standingsGraphOptionsBase = {
             display: false
         },
         tooltip: {
-            enabled: true,
+            enabled: false,
             position: 'nearest',
-            // external: externalTooltipHandler,
+            external: externalTooltipHandler,
         },
         autocolors: false,
         annotation: {
             annotations: {
                 playoffLine: {
                     type: 'line',
-                    display: false,
+                    display: true,
                     yMin: 6.5,
                     yMax: 6.5,
                     borderColor: 'rgb(132, 99, 255)',
@@ -151,7 +153,7 @@ const standingsGraphOptionsBase = {
                 },
                 playinLine: {
                     type: 'line',
-                    display: false,
+                    display: true,
                     yMin: 10.5,
                     yMax: 10.5,
                     borderColor: 'rgb(255, 99, 132)',
@@ -229,8 +231,9 @@ function _getRecordDataForTeamByDay(team, earliestGameDateTime) {
 }
 
 
-function _getSeedDataForTeamByDay(team, teamSubsetOption) {
-    var data = [];
+function _getSeedDataForTeamByDay(team, earliestGameDateTime, teamSubsetOption) {
+    const zeroDataPoint = {x: earliestGameDateTime.minus({'days': 1}).toMillis(), y: teamSubsetOption === standingsGraphTeamOptions.all ? 30 / 2 : 15 / 2};
+    var data = [zeroDataPoint];
     const rankOverTime = teamSubsetOption === standingsGraphTeamOptions.all ? team.league_rank_by_date : team.conference_seed_by_date;
     for (const [dateMS, rank] of Object.entries(rankOverTime)) {
         let x = Number(dateMS);
@@ -296,13 +299,14 @@ function _getRecordDataForTeamByTimeStep(team, earliestGameDateTime, timeStepOpt
 }
 
 
-function _getSeedDataForTeamByTimeStep(team, timeStepOption, teamSubsetOption) {
+function _getSeedDataForTeamByTimeStep(team, earliestGameDateTime, timeStepOption, teamSubsetOption) {
+    const zeroDataPoint = {x: earliestGameDateTime.toMillis(), y: teamSubsetOption === standingsGraphTeamOptions.all ? 30 / 2 : 15 / 2};
     const timeStepString = timeStepOption === standingsGraphXAxisTimeScaleOptions.week ? 'week' : 'month';
     const rankOverTime = teamSubsetOption === standingsGraphTeamOptions.all ? team.league_rank_by_date : team.conference_seed_by_date;
-    var data = [];
+    var data = [zeroDataPoint];
 
     var maxSeedDateMS = 0;
-    for (const [dateMS, rank] of Object.entries(rankOverTime)) {
+    for (const dateMS of Object.keys(rankOverTime)) {
         let intDateMS = Number(dateMS);
         if (intDateMS > maxSeedDateMS) {
             maxSeedDateMS = intDateMS;
@@ -346,32 +350,32 @@ function _getDataForTeam(team, earliestGameDateTime, xAxisTimeStepOption, yAxisO
         if (yAxisOption === standingsGraphYAxisOptions.record) {
             return _getRecordDataForTeamByDay(team, earliestGameDateTime);
         } else {
-            return _getSeedDataForTeamByDay(team, teamSubsetOption);
+            return _getSeedDataForTeamByDay(team, earliestGameDateTime, teamSubsetOption);
         }
     } else {
         if (yAxisOption === standingsGraphYAxisOptions.record) {
             return _getRecordDataForTeamByTimeStep(team, earliestGameDateTime, xAxisTimeStepOption);
         } else {
-            return _getSeedDataForTeamByTimeStep(team, xAxisTimeStepOption, teamSubsetOption);
+            return _getSeedDataForTeamByTimeStep(team, earliestGameDateTime, xAxisTimeStepOption, teamSubsetOption);
         }
     }
 }
 
 
-function _getLogoURLForTeamName(teamName) {
+function _getLogoURLForTeamName(teamName, isGrayScale) {
     var imageName = teamName.toLowerCase().replace(/ /g, '_');
-    return `./img/${imageName}.png`;
+    return `./img/${imageName}${isGrayScale ? '_grayscale' : ''}.png`;
 }
 
 
-function _getLogoImageForTeamName(teamName) {
+function _getLogoImageForTeamName(teamName, isGrayScale) {
     var teamLogo = new Image(IMAGE_POINT_SIZE_PX, IMAGE_POINT_SIZE_PX);
-    teamLogo.src = _getLogoURLForTeamName(teamName);
+    teamLogo.src = _getLogoURLForTeamName(teamName, isGrayScale);
     return teamLogo;
 }
 
 
-function _setDatasetPointStyling(dataset) {
+function _setDatasetPointStyling(dataset, active) {
     var lastNotNullIdx = 0;
     const nullIndxs = [];
     for (let i = 0; i < dataset.data.length; i++) {
@@ -383,7 +387,7 @@ function _setDatasetPointStyling(dataset) {
         }
     }
     var pointStyles = new Array(dataset.data.length).fill('point');
-    pointStyles[lastNotNullIdx] = _getLogoImageForTeamName(dataset.team.name);
+    pointStyles[lastNotNullIdx] = _getLogoImageForTeamName(dataset.team.name, !active);
     dataset.pointStyle = pointStyles;
 
     var pointRadii = new Array(dataset.data.length).fill(2.5);
@@ -403,7 +407,7 @@ function _setDatasetPointStyling(dataset) {
 }
 
 
-function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption) {
+function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, teamSubsetOption) {
     var dataset = {
         ...teamGraphDatasetBase,
         label: team.name,
@@ -415,12 +419,12 @@ function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption) {
         // Custom attributes
         yAxisOption: yAxisOption,
         xAxisTimeStepOption: xAxisTimeStepOption,
-        // gamesByTimestep: gamesByTimestep,
+        teamSubsetOption: teamSubsetOption,
         team: team,
         logoURL: _getLogoURLForTeamName(team.name),
     }
 
-    _setDatasetPointStyling(dataset);
+    _setDatasetPointStyling(dataset, true);
     return dataset;
 }
 
@@ -431,65 +435,12 @@ function _getDataForTeams(teamData, earliestGameDateTime, xAxisTimeStepOption, y
     for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
         var team = teamData[teamIdx];
         var data = _getDataForTeam(team, earliestGameDateTime, xAxisTimeStepOption, yAxisTypeOption, teamSubsetOption);
-        // _insertSeasonBreakData(data, seasonOption);
-        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption);
+        _insertSeasonBreakData(data, seasonOption);
+        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption, teamSubsetOption);
         datasets.push(teamDataset);
     }
 
     return {datasets: datasets};
-}
-
-
-function _getSeedDataForTeams(teamData, xAxisTimeStepOption, teamSubsetOption, yAxisTypeOption) {
-    var datasets = [];
-    for (let teamIdx = 0; teamIdx < teamData.length; teamIdx++) {
-        var team = teamData[teamIdx];
-        if (teamSubsetOption === standingsGraphTeamOptions.all) {
-            var rankOverTime = team.league_rank_by_date;
-        } else {
-            rankOverTime = team.conference_seed_by_date;
-        }
-
-        var data = [];
-        var labels = [];
-        var ranksByTimeStep = new Map();
-
-        var firstDateString = Object.keys(rankOverTime)[0];
-        var firstDate = new Date();
-        firstDate.setTime(Date.parse(firstDateString));
-
-        var lastDateString = Object.keys(rankOverTime)[Object.keys(rankOverTime).length - 1];
-        var lastDate = new Date();
-        lastDate.setTime(Date.parse(lastDateString));
-        for (const [date, rank] of Object.entries(rankOverTime)) {
-            var parsedDate = new Date();
-            parsedDate.setTime(Date.parse(date));
-
-            if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.week) {
-                // var weeksSinceStart = Math.floor((parsedDate - firstDate) / weekInMilliseconds) + 1;
-                var weekDate = new Date();
-                weekDate.setTime(firstDate.getTime());
-                // weekDate.setDate(weekDate.getDate() + (weeksSinceStart * 7) - 1);
-                if (weekDate > lastDate) {
-                    weekDate.setTime(lastDate.getTime());
-                }
-                ranksByTimeStep.set(weekDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
-            } else if (xAxisTimeStepOption === standingsGraphXAxisTimeScaleOptions.month) {
-                ranksByTimeStep.set(parsedDate.toLocaleString('default', {month: 'short'}), rank);
-            } else {
-                ranksByTimeStep.set(parsedDate.toLocaleString('default', {day: 'numeric', month: 'short'}), rank);
-            }
-        }
-        
-        for (const [dateString, rank] of ranksByTimeStep) {
-            labels.push(dateString);
-            data.push(rank);
-        }
-
-        var teamDataset = _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisTypeOption);
-        datasets.push(teamDataset);
-    }
-    return {labels: labels, datasets: datasets};
 }
 
 
@@ -538,10 +489,10 @@ function getStandingsGraphDataFromTeamData(teamData,             // The team JSO
 
 function defineSeasonBreakAnnotations(options, seasonOption) {
     const breaks = seasonBreaks[seasonOption];
-        if (breaks === undefined) {
-            options.plugins.annotation.annotations = {};
-            return;
-        }
+    if (breaks === undefined) {
+        // options.plugins.annotation.annotations = {};  TODO fix this
+        return;
+    }
 
     for (const brk of breaks) {
         options.plugins.annotation.annotations[`${brk.reason}Annotation`] = {
@@ -623,6 +574,13 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
 }
 
 
+function addAlphaToHexColour(colour, alpha) {
+    // coerce values between 0 and 1
+    var opacity = Math.round(Math.min(Math.max(alpha || 1, 0), 1) * 255);
+    return colour + opacity.toString(16).toUpperCase();
+}
+
+
 function onHoverHandler(event, activeElements, chart) {
     var activeIndices = new Set();
     for (let i = 0; i < activeElements.length; i++) {
@@ -633,17 +591,21 @@ function onHoverHandler(event, activeElements, chart) {
         for (let datasetIdx = 0; datasetIdx < chart.data.datasets.length; datasetIdx++) {
             let dataset = chart.data.datasets[datasetIdx]
             if (activeIndices.has(datasetIdx)) {
-                dataset.backgroundColor = dataset.team.secondary_colour;
-                dataset.borderColor = dataset.team.primary_colour;
+                _setDatasetPointStyling(dataset, true);
+                dataset.backgroundColor = addAlphaToHexColour(dataset.team.secondary_colour, 1.0);
+                dataset.borderColor = addAlphaToHexColour(dataset.team.primary_colour, 1.0);
                 dataset.order = dataset.team.league_rank - 100;
             } else {
-                dataset.backgroundColor = "#ababab";
-                dataset.borderColor = "#ababab";
+                _setDatasetPointStyling(dataset, false);
+                dataset.backgroundColor = addAlphaToHexColour("#C9C9C9", 1.0);
+                dataset.borderColor = addAlphaToHexColour("#C9C9C9", 1.0);
+                dataset.order = dataset.team.league_rank
             }
         }
     } else {
         for (let datasetIdx = 0; datasetIdx < chart.data.datasets.length; datasetIdx++) {
             let dataset = chart.data.datasets[datasetIdx]
+            _setDatasetPointStyling(dataset, true);
             dataset.backgroundColor = dataset.team.secondary_colour;
             dataset.borderColor = dataset.team.primary_colour;
             dataset.order = dataset.team.league_rank;
@@ -654,11 +616,12 @@ function onHoverHandler(event, activeElements, chart) {
 }
 
 
-export { standingsGraphTeamOptions, 
+export { 
+    standingsGraphTeamOptions, 
     standingsGraphXAxisGamesOptions, 
     standingsGraphXAxisTimeScaleOptions, 
     standingsGraphYAxisOptions,
     standingsGraphSeasonOptions,
     getStandingsGraphDataFromTeamData,
     getStandingsGraphOptions,
-   };
+};

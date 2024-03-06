@@ -1,5 +1,6 @@
 *.pyc
 __pycache__
 .vscode/
+/.venv
 node_modules
 season_data_caches

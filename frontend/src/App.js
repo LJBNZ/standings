@@ -13,7 +13,7 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import 'chartjs-adapter-luxon';
 
 import GraphOptions from './GraphOptions';
-import StandingsTable from './Table';
+import { StandingsTable } from './Table';
 import styled, { createGlobalStyle } from 'styled-components';
 
 
@@ -23,7 +23,7 @@ Chart.register(annotationPlugin);
 const teamSubsetDefault = standingsGraphTeamOptions.all;
 const timeScaleDefault = standingsGraphXAxisTimeScaleOptions.gameNum;
 const yAxisDefault = standingsGraphYAxisOptions.record;
-const seasonDefault = standingsGraphSeasonOptions[2023];
+const seasonDefault = standingsGraphSeasonOptions[2024];
 
 const GlobalStyle = createGlobalStyle`
   body {
