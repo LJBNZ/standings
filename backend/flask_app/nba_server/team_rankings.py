@@ -58,7 +58,7 @@ class TeamWithRecord:
         self._team = team
 
         self._overall_record = Record()
-        self._record_by_team = defaultdict(Record)
+        self._record_by_opponent_id = defaultdict(Record)
         self._conference_record = Record()
         self._division_record = Record()
         self._point_differential = 0
@@ -77,10 +77,10 @@ class TeamWithRecord:
         """Updates team records based on game outcome."""
         game_value = 1 if game.outcome == 'W' else -1
         self._overall_record.increment_by(game_value)
-        self._record_by_team[game.opponent].increment_by(game_value)
-        if game.opponent.conference == self._team.conference:
+        self._record_by_opponent_id[game.opponent_id].increment_by(game_value)
+        if game.opponent_conference == self._team.conference:
             self._conference_record.increment_by(game_value)
-        if game.opponent.division == self._team.division:
+        if game.opponent_division == self._team.division:
             self._division_record.increment_by(game_value)
         self._point_differential += (game.team_score - game.opponent_score)
     
@@ -92,11 +92,15 @@ class TeamWithRecord:
         self._team.conference_seed = conference_seed
         self._team.league_rank = league_rank
 
-    def get_win_pct_vs_team(self, team: 'TeamWithRecord'):
-        return self._record_by_team[team].as_pct()
+    def get_win_pct_vs_opponent_by_id(self, opponent_id: str):
+        return self._record_by_opponent_id[opponent_id].as_pct()
     
-    def get_record_vs_team(self, team: 'TeamWithRecord'):
-        return self._record_by_team[team]
+    def get_record_vs_opponent_by_id(self, opponent_id: str):
+        return self._record_by_opponent_id[opponent_id]
+    
+    @property
+    def id(self):
+        return self._team.id
     
     @property
     def games(self):
@@ -127,7 +131,7 @@ class TeamWithRecord:
         return self._point_differential
 
     def __hash__(self) -> int:
-        return hash(self._team)
+        return hash(self.id)
 
     def __lt__(self, other: object) -> bool:
         assert isinstance(other, type(self))
@@ -143,8 +147,8 @@ def break_two_way_tie(tied_teams: List[TeamWithRecord],
                       division_leaders: Optional[Dict[str, TeamWithRecord]] = None) -> List[TeamWithRecord]:
     """Apply two-way tie-breaker criteria to a list of tied teams."""
     team_a, team_b = tied_teams
-    head_to_head_win_pct = {team_a: team_a.get_win_pct_vs_team(team_b), 
-                            team_b: team_b.get_win_pct_vs_team(team_a)}
+    head_to_head_win_pct = {team_a: team_a.get_win_pct_vs_opponent_by_id(team_b.id), 
+                            team_b: team_b.get_win_pct_vs_opponent_by_id(team_a.id)}
     
     def _team_is_division_leader(team):
         return division_leaders[team.division] is team
@@ -195,7 +199,7 @@ def break_multi_way_tie(tied_teams: List[TeamWithRecord],
         for other_team in tied_teams:
             if other_team is team:
                 continue
-            record_vs_other_team = team.get_record_vs_team(other_team)
+            record_vs_other_team = team.get_record_vs_opponent_by_id(other_team.id)
             record_vs_tied_teams += record_vs_other_team
         win_pct_vs_other_tied_teams_by_team[team] = record_vs_tied_teams.as_pct()    
 
@@ -362,7 +366,7 @@ def _get_team_win_pct_vs_playoff_teams(team, all_ordered_teams, playoff_format, 
     # Sum the total record for all games against those playoff teams
     cumulative_record = Record()
     for playoff_team in playoff_teams:
-        cumulative_record += team.get_record_vs_team(playoff_team)
+        cumulative_record += team.get_record_vs_opponent_by_id(playoff_team.id)
     return cumulative_record.as_pct()
 
 

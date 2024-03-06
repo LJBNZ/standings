@@ -61,12 +61,12 @@ class Game():
     outcome: str
     cumulative_wins: int
     cumulative_losses: int
-    opponent: 'Team'
+    opponent_id: str
+    opponent_conference: str
+    opponent_division: str
 
     def to_json(self):
-        d = self.__dict__.copy()
-        del d['opponent']
-        return d
+        return self.__dict__.copy()
 
 
 class Team:

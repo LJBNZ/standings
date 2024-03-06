@@ -70,7 +70,8 @@ def _get_game_logs_for_team(team_id: int, season_year: str, team_scores_by_game_
             n_wins += 1
         else:
             n_losses += 1
-        games.append(Game(game_id, game_num, game_date, game_date_ms, matchup, team_score, opponent_score, outcome, n_wins, n_losses, opponent))
+        games.append(Game(game_id, game_num, game_date, game_date_ms, matchup, team_score, opponent_score, outcome, n_wins, n_losses, 
+                          opponent.id, opponent.conference, opponent.division))
 
     return games
 
