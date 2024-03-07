@@ -174,7 +174,6 @@ const standingsGraphOptionsBase = {
 const teamGraphDatasetBase = {
     label: "",
     data: [],
-    tension: 0.1,
     clip: {left: false, top: false, right: IMAGE_POINT_SIZE_PX, bottom: false},
     hidden: false,
     pointHitRadius: 10,
@@ -415,6 +414,7 @@ function _getDatasetForTeamData(team, data, xAxisTimeStepOption, yAxisOption, te
         backgroundColor: team.secondary_colour,
         borderColor: team.primary_colour,
         order: team.league_rank,
+        tension: yAxisOption === standingsGraphYAxisOptions.seed ? 0.1 : 0.3,
 
         // Custom attributes
         yAxisOption: yAxisOption,
@@ -518,8 +518,29 @@ function defineSeasonBreakAnnotations(options, seasonOption) {
     }
 }
 
+function _calculateScaleRangesFromData(data) {
+    var xMin = Infinity;
+    var yMin = Infinity;
+    var xMax = -Infinity;
+    var yMax = -Infinity;
+    for (const dataset of data.datasets) {
+        for (const dataPoint of dataset.data) {
+            if (dataPoint.x < xMin) {
+                xMin = dataPoint.x;
+            } else if (dataPoint.x > xMax) {
+                xMax = dataPoint.x;
+            } else if (dataPoint.y < yMin) {
+                yMin = dataPoint.y;
+            } else if (dataPoint.y > yMax) {
+                yMax = dataPoint.y;
+            }
+        }
+    }
+    return {'xMin': xMin, 'xMax': xMax, 'yMin': yMin, 'yMax': yMax};
+}
 
-function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraphTeamOptions
+function getStandingsGraphOptions(data,
+                                  teamSubsetOption,     // One of standingsGraphTeamOptions
                                   xAxisTimeStepOption,  // One of standingsGraphXAxisTimeScaleOptions
                                   yAxisTypeOption,      // One of standingsGraphYAxisOptions
                                   seasonOption) {    
@@ -547,10 +568,13 @@ function getStandingsGraphOptions(teamSubsetOption,     // One of standingsGraph
     }
 
     if (yAxisTypeOption === standingsGraphYAxisOptions.record) {
+        let ranges = _calculateScaleRangesFromData(data);
         options.scales.y.reverse = false;
         options.scales.y.title.text = 'Games above .500';
-        options.scales.y.min = undefined;
-        options.scales.y.max = undefined;
+        options.scales.x.min = ranges.xMin;
+        options.scales.x.max = ranges.xMax;
+        options.scales.y.min = ranges.yMin;
+        options.scales.y.max = ranges.yMax;
         options.scales.y.ticks.count = undefined;
         options.scales.y.ticks.autoSkip = true;
     } else {

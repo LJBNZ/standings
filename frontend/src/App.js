@@ -72,7 +72,7 @@ function App() {
   }, [seasonOption]);
 
   let data = useMemo(() => getStandingsGraphDataFromTeamData(teamData, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption), [teamData, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption]);
-  let options = useMemo(() => getStandingsGraphOptions(teamSubsetOption, timeScaleOption, yAxisOption, seasonOption), [teamSubsetOption, timeScaleOption, yAxisOption, seasonOption]);
+  let options = useMemo(() => getStandingsGraphOptions(data, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption), [teamData, teamSubsetOption, timeScaleOption, yAxisOption, seasonOption]);
 
   const teamSubsetOptions = {name: "teamSubsetOptions", options: standingsGraphTeamOptions, selected: teamSubsetOption, setter: setTeamSubsetOption};
   const timeScaleOptions = {name: "timeScaleOptions", options: standingsGraphXAxisTimeScaleOptions, selected: timeScaleOption, setter: setTimeScaleOption};
